@@ -40,7 +40,6 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
@@ -100,8 +99,8 @@ public class HelloService extends Service implements LocationListener
     {
     	if(nagrywanie==false && wartosc==true)
     	{
-    		NotificationCompat.Builder mBuilder =
-    		        new NotificationCompat.Builder(this)
+    		Notification.Builder mBuilder =
+    		        new Notification.Builder(this)
     		        .setSmallIcon(R.drawable.znak)
     		        .setContentTitle("GPX Przegląd")
     		        .setContentText("Trwa zapisywanie trasy (AE)");
