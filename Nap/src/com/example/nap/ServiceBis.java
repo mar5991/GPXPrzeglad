@@ -31,7 +31,6 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.support.v4.app.NotificationCompat;
 
 @SuppressLint("SimpleDateFormat")
 public class ServiceBis extends Service implements LocationListener
@@ -110,8 +109,8 @@ public class ServiceBis extends Service implements LocationListener
 		String provider = locationManager.getBestProvider(criteria, false);
 		Location location = locationManager.getLastKnownLocation(provider);
 		locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
-		NotificationCompat.Builder mBuilder =
-		        new NotificationCompat.Builder(this)
+		Notification.Builder mBuilder =
+		        new Notification.Builder(this)
 		        .setSmallIcon(R.drawable.znak)
 		        .setContentTitle("GPX Przegląd")
 		        .setContentText("Trwa zapisywanie trasy.");

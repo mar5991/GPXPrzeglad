@@ -33,7 +33,6 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
 import android.graphics.RectF;
-import android.support.v4.app.NotificationCompat;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -176,6 +175,7 @@ public class MainActivity extends Activity
 		long sreptime;
 		private Location aktloc;
 		ArrayList <Location> punkty2;
+		SciezkaLoc doble;
 		boolean przesAvailable()
 		{
 			return true;
@@ -317,7 +317,7 @@ public class MainActivity extends Activity
 			p.setStyle(Paint.Style.FILL);
 			p.setARGB(129, 0, 153, 204);
 			
-			if(mService!=null && mService.sciezka!=null)
+			if(mService!=null && mService.sciezka!=null && mService.nagr())
 			{
 				int s1=mService.sciezka.size();
 				p.setStyle(Paint.Style.STROKE);
@@ -351,18 +351,40 @@ public class MainActivity extends Activity
 					canm.drawOval(oval, p);
 				}
 			}
-			/*if(punkty2!=null)
+			if(doble!=null && !mService.nagr())
 			{
-				int s1=punkty2.size();
+				int s1=doble.size();
+				p.setStyle(Paint.Style.STROKE);
+				p.setARGB(255, 51, 181, 229);
 				for(int i=1; i<s1; i++)
 				{
-					Location aloc=punkty2.get(i-1);
-					Location alocbis=punkty2.get(i);
-					PointF p1=transform(WspGeoToWspEkr(new PointF((float)aloc.getLongitude(), (float)aloc.getLatitude())), mx);
-					PointF p2=transform(WspGeoToWspEkr(new PointF((float)alocbis.getLongitude(), (float)alocbis.getLatitude())), mx);
+					punktloc aloc=doble.getpkt(i-1);
+					punktloc alocbis=doble.getpkt(i);
+					PointF p1=transform(WspGeoToWspEkr(new PointF((float)aloc.lon, (float)aloc.lat)), mx);
+					PointF p2=transform(WspGeoToWspEkr(new PointF((float)alocbis.lon, (float)alocbis.lat)), mx);
 					canm.drawLine(p1.x, p1.y, p2.x, p2.y, p);
 				}
-			}*/
+				double dlkcal=doble.dlugosc_all();
+				for(double i=0; i<dlkcal; i+=1000)
+				{
+					punktloc tmk=doble.getpkt_d(i);
+					p.setARGB(220, 255, 68, 68);
+					p.setStyle(Paint.Style.FILL_AND_STROKE);
+					PointF pa=transform(WspGeoToWspEkr(new PointF((float)tmk.lon, (float)tmk.lat)), mx);
+					RectF oval=new RectF(pa.x-10, pa.y+10, pa.x+10, pa.y-10);
+					canm.drawOval(oval, p);
+				}
+				double tikcal=doble.czas_all();
+				for(double i=0; i<tikcal; i+=60)
+				{
+					punktloc tmk=doble.getpkt_t(i);
+					p.setARGB(220, 255, 187, 51);
+					p.setStyle(Paint.Style.FILL_AND_STROKE);
+					PointF pa=transform(WspGeoToWspEkr(new PointF((float)tmk.lon, (float)tmk.lat)), mx);
+					RectF oval=new RectF(pa.x-10, pa.y+10, pa.x+10, pa.y-10);
+					canm.drawOval(oval, p);
+				}
+			}
 			p.setARGB(255, 0, 153, 204);
 			if(aktloc!=null)
 			{
@@ -674,8 +696,8 @@ public class MainActivity extends Activity
 	            if (requestCode == 1) {
 	                Uri selectedUri = data.getData();
 	                String ssa=selectedUri.getEncodedPath();
-	                if(!mService.nagr())
-	                mService.sciezka=new SciezkaLoc(ssa);
+	                if(!mService.nagr() && frtest1!=null)
+	                	frtest1.mapa1.obr.doble=new SciezkaLoc(ssa);
 	                noti(String.valueOf(mService.sciezka.size()), 121);
 	           }
 	        }
@@ -706,8 +728,8 @@ public class MainActivity extends Activity
     };
     void noti(String txt, int id)
     {
-		NotificationCompat.Builder mBuilder =
-		        new NotificationCompat.Builder(this)
+		Notification.Builder mBuilder =
+		        new Notification.Builder(this)
 		        .setSmallIcon(R.drawable.znak)
 		        .setContentTitle("kaczmar")
 		        .setContentText(txt);
@@ -812,6 +834,11 @@ public class MainActivity extends Activity
 		lay1.sendError();
 		Random r=new Random();
 		datex=(r.nextInt(1000));
+    }
+    boolean mBound = false;
+    protected void onStart()
+    {
+        super.onStart();
 		intbis=new interfejsbis();
         Intent intent = new Intent(MainActivity.this, HelloService.class);
         intent.addCategory("kupa");
@@ -823,20 +850,9 @@ public class MainActivity extends Activity
         mConnection2 = new SckBis();
         bindService(intent2, mConnection2, Context.BIND_AUTO_CREATE);
     }
-    boolean mBound = false;
-    protected void onStart()
+    protected void onStop()
     {
-        super.onStart();
-    }
-    protected void onResume()
-    {
-        super.onResume();
-    }
-    protected void onDestroy()
-    {
-    	super.onDestroy();
-        if(frtest1.mapa1.obr.ig!=null)
-        	frtest1.mapa1.obr.ig.zapisz();
+        super.onStop();
         if(mBound && mService.nagr())
         {
         	String rku = Environment.getExternalStorageDirectory().toString();
@@ -853,6 +869,12 @@ public class MainActivity extends Activity
         Intent intent = new Intent(MainActivity.this, HelloService.class);
         intent.addCategory("kupa");
         stopService(intent);
+    }
+    protected void onDestroy()
+    {
+    	super.onDestroy();
+        if(frtest1.mapa1.obr.ig!=null)
+        	frtest1.mapa1.obr.ig.zapisz();
     }
 	public class MyTabListener implements ActionBar.TabListener {
 		Fragment fragment;
