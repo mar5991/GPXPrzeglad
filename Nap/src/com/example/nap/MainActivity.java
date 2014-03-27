@@ -34,6 +34,8 @@ import android.graphics.Path;
 import android.graphics.PointF;
 import android.graphics.RectF;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -55,7 +57,7 @@ import com.example.nap.HelloService.interfejs;
 import com.example.nap.SciezkaLoc.punktloc;
 import com.example.nap.ServiceBis.LocalBinderBis;
 
-@SuppressLint("ValidFragment")
+@SuppressLint({ "ValidFragment", "ShowToast" })
 @TargetApi(Build.VERSION_CODES.HONEYCOMB)
 public class MainActivity extends Activity
 {
@@ -93,6 +95,7 @@ public class MainActivity extends Activity
 	        return vu1;
 	    }
 	}
+	Menu menu;
 	Myfragment frtest1;
 	ArticleFragment2 frtest2;
 	int datex;
@@ -797,12 +800,40 @@ public class MainActivity extends Activity
     SckBis mConnection2;
     interfejsbis intbis;
 	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
+	public boolean onCreateOptionsMenu (Menu menut)
+	{
+		menu=menut;
+        MenuItem kleva1=menu.add(0, 1, 0, "koczargi");
+        MenuItem kleva2=menu.add(0, 2, 0, "piekary śląskie");
+        MenuItem kleva3=menu.add(0, 3, 0, "pułtusk");
+        return true;
+	}
+	public boolean onOptionsItemSelected(MenuItem item) {
+		Toast.makeText(MainActivity.this, "DOŁOWIEC", Toast.LENGTH_SHORT);
+	    if(item.getItemId()==1)
+	    {
+	    	if(lay1.t9!=null)
+	    	{
+	    		lay1.t9.setText("PASGAL");
+	    	}
+	    }
+	    if(item.getItemId()==2)
+	    {
+	    	Toast.makeText(this, "piekary śląskie", Toast.LENGTH_SHORT);
+	    }
+	    if(item.getItemId()==3)
+	    {
+	    	Toast.makeText(this, "pułtusk", Toast.LENGTH_SHORT);
+	    }
+	    return true;
+	}
     public void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
         //this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         String rku = Environment.getExternalStorageDirectory().toString();
         vu1=new LinearLayout(this);
+        
         gendir = new File(rku + "/nap_program");    
         gendir.mkdirs();
         netdir =new File(gendir.getAbsolutePath()+ "/net_download");
