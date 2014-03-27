@@ -33,6 +33,8 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
 import android.graphics.RectF;
+import android.support.v4.app.ActionBarDrawerToggle;
+import android.support.v4.widget.DrawerLayout;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -40,11 +42,14 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -709,10 +714,11 @@ public class MainActivity extends Activity
     {
         public void onServiceConnected(ComponentName className, IBinder service)
         {
+        	if(lay1==null || lay1.t3==null)
+        		return;
            LocalBinder binder = (LocalBinder) service;
             mService = (HelloService) binder.getService(intbis);
             mBound = true;
-            lay1.sendData(mService.last);
             if(mService.nagr())
             {
             	lay1.t3.setText("STOP ZAPIS");
@@ -799,8 +805,8 @@ public class MainActivity extends Activity
     Tab tab1, tab2;
     SckBis mConnection2;
     interfejsbis intbis;
-	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
-	public boolean onCreateOptionsMenu (Menu menut)
+	//@TargetApi(Build.VERSION_CODES.HONEYCOMB)
+	/*public boolean onCreateOptionsMenu (Menu menut)
 	{
 		menu=menut;
         MenuItem kleva1=menu.add(0, 1, 0, "koczargi");
@@ -826,22 +832,37 @@ public class MainActivity extends Activity
 	    	Toast.makeText(this, "pułtusk", Toast.LENGTH_SHORT);
 	    }
 	    return true;
-	}
-    public void onCreate(Bundle savedInstanceState)
+	}*/
+	 private String[] mPlanetTitles = {"Art", "Dan", "Jen"};
+	    private DrawerLayout mDrawerLayout;
+	    private ListView mDrawerList;
+	    private class DrawerItemClickListener implements ListView.OnItemClickListener {
+	        @Override
+	        public void onItemClick(AdapterView parent, View view, int position, long id) {
+	            selectItem(position);
+	        }
+	    }
+
+	    /** Swaps fragments in the main content view */
+	    private void selectItem(int position) {
+	        mDrawerList.setItemChecked(position, true);
+	        setTitle(mPlanetTitles[position]);
+	        mDrawerLayout.closeDrawer(mDrawerList);
+	    }
+    public void onCreate(Bundle savedInstanceState, ActionBarDrawerToggle mDrawerToggle)
     {
         super.onCreate(savedInstanceState);
         //this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         String rku = Environment.getExternalStorageDirectory().toString();
         vu1=new LinearLayout(this);
-        
         gendir = new File(rku + "/nap_program");    
         gendir.mkdirs();
         netdir =new File(gendir.getAbsolutePath()+ "/net_download");
         netdir.mkdirs();
         setTheme(android.R.style.Theme_Holo);
 		ActionBar bar = getActionBar();
-		bar.setDisplayShowHomeEnabled(false);
-		bar.setDisplayShowTitleEnabled(false);
+		bar.setDisplayShowHomeEnabled(true);
+		bar.setDisplayShowTitleEnabled(true);
 		v1=new ScrollView(this);
 		vu1.addView(v1);
 		lay1=new DaneLokalizacyjne(this);
@@ -865,6 +886,30 @@ public class MainActivity extends Activity
 		lay1.sendError();
 		Random r=new Random();
 		datex=(r.nextInt(1000));
+		//mPlanetTitles = getResources().getStringArray(R.array.planets_array);
+        mDrawerLayout = new DrawerLayout(this);
+        mDrawerList = new ListView (this);
+        mDrawerList.setAdapter(new ArrayAdapter<String>(this,
+                R.layout.drawer_list_item, mPlanetTitles));
+        mDrawerLayout.addView(mDrawerList);
+        mDrawerToggle = new ActionBarDrawerToggle(MainActivity.this, mDrawerLayout,  R.drawable.znak, R.string.drawer_open, R.string.drawer_close){
+
+            /** Called when a drawer has settled in a completely closed state. */
+            public void onDrawerClosed(View view) {
+                super.onDrawerClosed(view);
+                getActionBar().setTitle("KUPA");
+            }
+
+            /** Called when a drawer has settled in a completely open state. */
+            public void onDrawerOpened(View drawerView) {
+                super.onDrawerOpened(drawerView);
+                getActionBar().setTitle("ZUPA");
+            }
+        };
+        // Set the adapter for the list view
+       // mDrawerList.setAdapter(new ArrayAdapter<String>(this,
+         //       R.layout.drawer_list_item, mPlanetTitles));
+        // Set the list's click listener
     }
     boolean mBound = false;
     protected void onStart()
