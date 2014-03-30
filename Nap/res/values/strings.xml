@@ -4,6 +4,8 @@
     <string name="app_name">Nap</string>
     <string name="action_settings">Settings</string>
     <string name="hello_world">Hello world!</string>
+        <string name="drawer_open">Hello world!</string>
+            <string name="drawer_close">Hello world!</string>
     <string name="title_activity_display_message">DisplayMessageActivity</string>
 
 </resources>

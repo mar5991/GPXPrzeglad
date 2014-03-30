@@ -85,11 +85,11 @@ public class SciezkaLoc
 	    private final static String ATTR_LAT = "lat=\"";
 	    private final static String ATTR_LON = "lon=\"";
 	    private final static String ELEM_ELE = "<ele>";
-	    private final static String ELEM_TIM = "<galacke>";
+	    private final static String ELEM_TIM = "<galce>";
 	 
 	    private double mLat = 0.0;
 	    private double mLon = 0.0;
-	    private long mTim = 0;
+	    public long mTim = 0;
 	    private double mEle = Double.MIN_VALUE;
 	 
 	    public TrkPt () {
@@ -99,7 +99,7 @@ public class SciezkaLoc
 	        int lat = s.indexOf(ATTR_LAT);
 	        int lon = s.indexOf(ATTR_LON);
 	        int ele = s.indexOf(ELEM_ELE);
-	        int time = s.indexOf(ELEM_TIM);
+	        int time =s.indexOf(ELEM_TIM);
 	        if (lat < 0 || lon < 0) {
 	            //throw new InvalidParameterException("trkpt without lat or lon attribute");
 	            return false;
@@ -116,7 +116,7 @@ public class SciezkaLoc
 	        }
 	        if (time > 0)
 	        {
-		          mTim = Long.parseLong(s.substring(ele + ELEM_TIM.length(), s.indexOf("<", time + ELEM_TIM.length())));
+		          mTim = Long.parseLong(s.substring(time + ELEM_TIM.length(), s.indexOf("<", time + ELEM_TIM.length())));
 		    }
 	        //System.out.println("lat " + (lat+ATTR_LAT.length()) + " endLat " + endLat);
 	 
@@ -351,12 +351,13 @@ public class SciezkaLoc
 		}
 		else
 		{
-			now.time_from_start=0; //TODO
+			now.time_from_start=0;
+			//(float) now.time/1000-(float)data.get(0).time/1000;
 			now.dist_przebyty=calcdist(now.lat, now.lon, data.get(size()-1).lat, data.get(size()-1).lon)+data.get(size()-1).dist_przebyty;
 		}
 				data.add(now);
-			pdt = gpt.nextTrkPt();
 		}
+		pdt = gpt.nextTrkPt();
 		}
 		 catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -405,7 +406,9 @@ public class SciezkaLoc
 			id++;
 		}
 		double poptime=data.get(id-1).time_from_start;
-		double stos=(time-poptime)/(akttime-poptime);
+		double stos=0.5;
+		if(akttime-poptime!=0)
+			stos=(time-poptime)/(akttime-poptime);
 		return mieszaj(data.get(id-1), data.get(id), stos);
 	}
 	punktloc getpkt_d(double distance)

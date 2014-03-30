@@ -107,6 +107,7 @@ public class HelloService extends Service implements LocationListener
     		Notification buld=mBuilder.build();
     		buld.flags |= Notification.FLAG_ONGOING_EVENT;
     		startForeground(527, buld);
+    		inc.nagsta();
     	}
     	if(nagrywanie==true && wartosc==false)
     	{
@@ -119,6 +120,7 @@ public class HelloService extends Service implements LocationListener
     		String sciez=gendir+"/"+dateFormatted+"mpx.gpx";
     		zapisz(sciez);
     		stopForeground(true);
+    		inc.nagsto();
     	}
     	nagrywanie=wartosc;
     }
@@ -140,6 +142,8 @@ public class HelloService extends Service implements LocationListener
     public interface interfejs
     {
     	public void zmianalokalizacji(Location loc);
+    	public void nagsta();
+    	public void nagsto();
     }
     interfejs inc;
 	public class LocalBinder extends Binder

@@ -1,6 +1,7 @@
 package com.example.nap;
 
 import java.io.File;
+import java.text.DateFormat.Field;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -25,6 +26,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -33,22 +35,31 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
 import android.graphics.RectF;
+import android.support.v4.app.ActionBarDrawerToggle;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v4.widget.DrawerLayout.LayoutParams;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.example.nap.HelloService;
 import com.example.nap.ImageLoader;
 import com.example.nap.ImageData;
@@ -62,42 +73,23 @@ import com.example.nap.ServiceBis.LocalBinderBis;
 public class MainActivity extends Activity
 {
 	@SuppressLint("ShowToast")
-	public class Myfragment extends Fragment {
-		public class Mapa extends LinearLayout
+	public class Mapa extends LinearLayout
+	{
+		Obrazek obr;
+		public Mapa (Context context) 
 		{
-			Obrazek obr;
-			public Mapa (Context context) 
-			{
-				super(context);
-				obr = new Obrazek(context, 600, 1000);
-				this.addView(obr);
-			}
-			void mapix()
-			{
-
-			}
+			super(context);
+			obr = new Obrazek(context, 600, 1000);
+			this.addView(obr);
 		}
-		Mapa mapa1;
-	    Myfragment()
-	    {
-	        mapa1=new Mapa(MainActivity.this);
-	    }
-	    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-	        Bundle savedInstanceState) {
-	    	Toast.makeText(MainActivity.this, "VIEWI", Toast.LENGTH_SHORT);
-	        return mapa1;
-	    }
+		void mapix()
+		{
+
+		}
 	}
-	public class ArticleFragment2 extends Fragment {
-	    @Override
-	    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-	        Bundle savedInstanceState) {
-	        return vu1;
-	    }
-	}
+	Mapa mapa1;
 	Menu menu;
-	Myfragment frtest1;
-	ArticleFragment2 frtest2;
+	SciezkaLoc doble;
 	int datex;
 	public PointF transform(PointF old, Matrix mx)
 	{
@@ -154,7 +146,8 @@ public class MainActivity extends Activity
 	        return true;
 	    }
 	    return false;
-	} 
+	}
+	boolean follow=false;
 	class Obrazek extends ImageView
 	{
 		private Canvas can;
@@ -178,7 +171,6 @@ public class MainActivity extends Activity
 		long sreptime;
 		private Location aktloc;
 		ArrayList <Location> punkty2;
-		SciezkaLoc doble;
 		boolean przesAvailable()
 		{
 			return true;
@@ -230,14 +222,20 @@ public class MainActivity extends Activity
 			old_matrix=new Matrix(mx);
 			repaint();
 		}
-		double aktualzoom()
+		float aktualzoom()
 		{
 			float scale1=distance(transform (new PointF(0, 0), mx), transform (new PointF(1, 1), mx));
-			return (double) (scale1/Math.sqrt(2));
+			return (scale1/(float) Math.sqrt(2));
 		}
 		void repaint()
 		{
-			//BitmapFactory
+			if(follow && aktloc!=null)
+			{
+				PointF pff=new PointF();
+				pff.x=(float) aktloc.getLongitude();
+				pff.y=(float) aktloc.getLatitude();		
+				ustawwsp(pff, aktualzoom());
+			}
 			recentrepaint=System.currentTimeMillis();
 			sreptime=recentrepaint;
 			old_matrix=new Matrix(mx);
@@ -268,44 +266,44 @@ public class MainActivity extends Activity
 			if(ig!=null)
 			{
 				
-			if(netavail())
-			{
-				ig.laduj(minx, maxx, miny, maxy, scale3, this);
-			}
-			int s2=ig.imadat.size();
-			for(int i=0; i<s2; i++)
-			{
-				ImageData im=ig.imadat.get(i);
-				double scale2=distance(new PointF(0, 0), new PointF(im.rozdzielczoscx, im.rozdzielczoscy));
-				double scale=scale1*scale2;
-				//UWAGA MNOŻNIK 256 W NASTĘPNEJ LINIJCE JEST TYMCZASOWY I NIEPRAWIDŁOWY
-				if(scale>=1.6 && czy_pokrywajo(cclewydolny, ccprawygorny, im.lewydolny, new PointF(im.lewydolny.x+im.rozdzielczoscx*256, im.lewydolny.y+im.rozdzielczoscy*256)))
+				if(netavail())
 				{
-					Matrix nmax=new Matrix();
-					nmax.reset();
-					nmax.postTranslate(im.lewydolny.x, im.lewydolny.y);
-					nmax.postScale(im.rozdzielczoscx, im.rozdzielczoscy, im.lewydolny.x, im.lewydolny.y);
-					Bitmap nbt;
-					if(im.bmp==null)
+					ig.laduj(minx, maxx, miny, maxy, scale3, this);
+				}
+				int s2=ig.imadat.size();
+				for(int i=0; i<s2; i++)
+				{
+					ImageData im=ig.imadat.get(i);
+					double scale2=distance(new PointF(0, 0), new PointF(im.rozdzielczoscx, im.rozdzielczoscy));
+					double scale=scale1*scale2;
+					//UWAGA MNOŻNIK 256 W NASTĘPNEJ LINIJCE JEST TYMCZASOWY I NIEPRAWIDŁOWY
+					if(scale>=1.6 && czy_pokrywajo(cclewydolny, ccprawygorny, im.lewydolny, new PointF(im.lewydolny.x+im.rozdzielczoscx*256, im.lewydolny.y+im.rozdzielczoscy*256)))
 					{
-						nbt=BitmapFactory.decodeFile(im.sciezka);
-						im.bmp=nbt;
+						Matrix nmax=new Matrix();
+						nmax.reset();
+						nmax.postTranslate(im.lewydolny.x, im.lewydolny.y);
+						nmax.postScale(im.rozdzielczoscx, im.rozdzielczoscy, im.lewydolny.x, im.lewydolny.y);
+						Bitmap nbt;
+						if(im.bmp==null)
+						{
+							nbt=BitmapFactory.decodeFile(im.sciezka);
+							im.bmp=nbt;
+						}
+						else
+						{
+							nbt=im.bmp;
+						}
+						nmax.postConcat(mx);
+						Paint paintx = new Paint();
+						//paintx.setAlpha(100);
+						if(nbt!=null)
+							can.drawBitmap(nbt, nmax, paintx);
 					}
 					else
 					{
-						nbt=im.bmp;
+						im.bmp=null;
 					}
-					nmax.postConcat(mx);
-					Paint paintx = new Paint();
-					//paintx.setAlpha(100);
-					if(nbt!=null)
-						can.drawBitmap(nbt, nmax, paintx);
 				}
-				else
-				{
-					im.bmp=null;
-				}
-			}
 			}
 			rysujsciezke(canm);
 			Matrix zero=new Matrix();
@@ -319,42 +317,7 @@ public class MainActivity extends Activity
 			p.setStrokeWidth(3);
 			p.setStyle(Paint.Style.FILL);
 			p.setARGB(129, 0, 153, 204);
-			
-			if(mService!=null && mService.sciezka!=null && mService.nagr())
-			{
-				int s1=mService.sciezka.size();
-				p.setStyle(Paint.Style.STROKE);
-				p.setARGB(255, 51, 181, 229);
-				for(int i=1; i<s1; i++)
-				{
-					punktloc aloc=mService.sciezka.getpkt(i-1);
-					punktloc alocbis=mService.sciezka.getpkt(i);
-					PointF p1=transform(WspGeoToWspEkr(new PointF((float)aloc.lon, (float)aloc.lat)), mx);
-					PointF p2=transform(WspGeoToWspEkr(new PointF((float)alocbis.lon, (float)alocbis.lat)), mx);
-					canm.drawLine(p1.x, p1.y, p2.x, p2.y, p);
-				}
-				double dlkcal=mService.sciezka.dlugosc_all();
-				for(double i=0; i<dlkcal; i+=1000)
-				{
-					punktloc tmk=mService.sciezka.getpkt_d(i);
-					p.setARGB(220, 255, 68, 68);
-					p.setStyle(Paint.Style.FILL_AND_STROKE);
-					PointF pa=transform(WspGeoToWspEkr(new PointF((float)tmk.lon, (float)tmk.lat)), mx);
-					RectF oval=new RectF(pa.x-10, pa.y+10, pa.x+10, pa.y-10);
-					canm.drawOval(oval, p);
-				}
-				double tikcal=mService.sciezka.czas_all();
-				for(double i=0; i<tikcal; i+=60)
-				{
-					punktloc tmk=mService.sciezka.getpkt_t(i);
-					p.setARGB(220, 255, 187, 51);
-					p.setStyle(Paint.Style.FILL_AND_STROKE);
-					PointF pa=transform(WspGeoToWspEkr(new PointF((float)tmk.lon, (float)tmk.lat)), mx);
-					RectF oval=new RectF(pa.x-10, pa.y+10, pa.x+10, pa.y-10);
-					canm.drawOval(oval, p);
-				}
-			}
-			if(doble!=null && !mService.nagr())
+			if(doble!=null)
 			{
 				int s1=doble.size();
 				p.setStyle(Paint.Style.STROKE);
@@ -377,8 +340,8 @@ public class MainActivity extends Activity
 					RectF oval=new RectF(pa.x-10, pa.y+10, pa.x+10, pa.y-10);
 					canm.drawOval(oval, p);
 				}
-				double tikcal=doble.czas_all();
-				for(double i=0; i<tikcal; i+=60)
+				/*double tikcal=doble.czas_all();
+				for(double i=0; i<tikcal; i+=600)
 				{
 					punktloc tmk=doble.getpkt_t(i);
 					p.setARGB(220, 255, 187, 51);
@@ -386,7 +349,7 @@ public class MainActivity extends Activity
 					PointF pa=transform(WspGeoToWspEkr(new PointF((float)tmk.lon, (float)tmk.lat)), mx);
 					RectF oval=new RectF(pa.x-10, pa.y+10, pa.x+10, pa.y-10);
 					canm.drawOval(oval, p);
-				}
+				}*/
 			}
 			p.setARGB(255, 0, 153, 204);
 			if(aktloc!=null)
@@ -438,7 +401,6 @@ public class MainActivity extends Activity
 		public Obrazek(Context context, int sz, int wy) 
 		{
 			super(context);
-			follow=false;
 			recentrepaint=System.currentTimeMillis();
 			sreptime=recentrepaint;
 			jedentouch=false;
@@ -535,13 +497,11 @@ public class MainActivity extends Activity
 	public void onWindowFocusChanged(boolean hasFocus)
 	{
 		  super.onWindowFocusChanged(hasFocus);
-		  if(frtest1!=null && frtest1.mapa1!=null && frtest1.mapa1.obr!=null)
+		  if(mapa1!=null && mapa1.obr!=null)
 		  {
-			frtest1.mapa1.obr.szer=vu1.getWidth();
-			frtest1.mapa1.obr.wys=vu1.getHeight();
+			mapa1.obr.szer=vu1.getWidth();
+			mapa1.obr.wys=vu1.getHeight();
 		  }
-			//PointF kuc=new PointF();
-			//kuc.set((float)21.12, (float)52.2);
 	}
 	boolean netavail()
 	{
@@ -557,8 +517,6 @@ public class MainActivity extends Activity
 		private TextView alt;
 		private TextView tim;
 		private TextView bea;
-		private Button t3;
-		private Button t9;
 		EditText ed1;
 		Button t4;
 		CheckBox rad1;
@@ -588,37 +546,13 @@ public class MainActivity extends Activity
 			this.addView(alt);
 			this.addView(tim);
 			this.addView(bea);
-			t3=new Button(context);
-			t9=new Button(context);
 			this.addView(rad1);
 			this.addView(rad2);
 			t4.setText("POBIERZ FOLDER");
-			t9.setText("TXX");
 			this.addView(ed1);
 			this.addView(t4);
-			this.addView(t9);
 			rad1.setText("INTERNET DOWNLOAD");
 			rad2.setText("FOLLOW");
-			t3.setOnClickListener(new View.OnClickListener(){
-			public void onClick(View v)
-			{
-				if(mService!=null)
-				{
-					if(mService.nagr()==false)
-					{
-						mService.setnagrywanie(true);
-		            	lay1.t3.setText("STOP ZAPIS");
-		            	lay1.t6.setActivated(false);
-					}
-					else
-					{
-						mService.setnagrywanie(false);
-		            	lay1.t3.setText("START ZAPIS");
-		            	lay1.t6.setActivated(true);
-					}
-				}
-			}
-	        });
 			t6.setText("ŚCIEŻKA GPX");
 			t6.setOnClickListener(new View.OnClickListener(){
 			public void onClick(View v)
@@ -637,18 +571,10 @@ public class MainActivity extends Activity
 			public void onClick(View v)
 			{
 				String newpath=gendir.getAbsolutePath()+"/"+ed1.getText();
-				if(frtest1.mapa1!=null)
-					frtest1.mapa1.obr.ig=new ImageLoader(newpath);
+				if(mapa1!=null)
+					mapa1.obr.ig=new ImageLoader(newpath);
 			}
 	        });
-			t9.setOnClickListener(new View.OnClickListener(){
-			public void onClick(View v)
-			{
-	        	noti(String.valueOf(mService.sciezka.size()), 166);
-			}
-	        });
-			t3.setText("NAGRYWANIE");
-			this.addView(t3);
 			this.addView(t6);
 		}
 		public void sendData(Location location)
@@ -699,8 +625,8 @@ public class MainActivity extends Activity
 	            if (requestCode == 1) {
 	                Uri selectedUri = data.getData();
 	                String ssa=selectedUri.getEncodedPath();
-	                if(!mService.nagr() && frtest1!=null)
-	                	frtest1.mapa1.obr.doble=new SciezkaLoc(ssa);
+	                if(!mService.nagr())
+	                	doble=new SciezkaLoc(ssa);
 	                noti(String.valueOf(mService.sciezka.size()), 121);
 	           }
 	        }
@@ -713,16 +639,6 @@ public class MainActivity extends Activity
             mService = (HelloService) binder.getService(intbis);
             mBound = true;
             lay1.sendData(mService.last);
-            if(mService.nagr())
-            {
-            	lay1.t3.setText("STOP ZAPIS");
-            	lay1.t6.setActivated(false);
-            }
-            else
-            {
-            	lay1.t3.setText("START ZAPIS");
-            	lay1.t6.setActivated(true);
-            }
         }
         public void onServiceDisconnected(ComponentName arg0)
         {
@@ -736,7 +652,6 @@ public class MainActivity extends Activity
 		        .setSmallIcon(R.drawable.znak)
 		        .setContentTitle("kaczmar")
 		        .setContentText(txt);
-		Notification buld=mBuilder.build();
 		NotificationManager mNotifyMgr = 
 		        (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		mNotifyMgr.notify(id, mBuilder.build());
@@ -753,7 +668,6 @@ public class MainActivity extends Activity
             	noti(String.valueOf(bisservice.sciezka.size()), 111);
             	mService.sciezka.copy(bisservice.sciezka);
             	mService.setnagrywanie(true);
-            	lay1.t3.setText("STOP ZAPIS");
             }
             unbindService(mConnection2);
             Intent intent2 = new Intent(MainActivity.this, ServiceBis.class);
@@ -777,94 +691,140 @@ public class MainActivity extends Activity
     	public void zmianalokalizacji(Location arg0)
     	{
     		lay1.sendData(arg0);
-			if(frtest1.mapa1.obr!=null)
+			if(mapa1.obr!=null)
 			{
-				frtest1.mapa1.obr.setaktloc(arg0);
-				frtest1.mapa1.obr.repaint2();
+				mapa1.obr.setaktloc(arg0);
+				mapa1.obr.repaint2();
 			}
     	}
+
+		@Override
+		public void nagsta()
+		{
+			if(kleva2!=null)
+				kleva2.setIcon(R.drawable.znak3);
+			doble=mService.sciezka;		
+		}
+
+		@Override
+		public void nagsto() {
+			if(kleva2!=null)
+				kleva2.setIcon(R.drawable.znak);
+			doble=null;
+		}
     }
-    /*public class interfejsbis implements interfejs
-    {
-    	public void zmianalokalizacji(Location arg0)
-    	{
-    		lay1.sendData(arg0);
-			if(lay2.obr!=null)
-			{
-				lay2.obr.setaktloc(arg0);
-				lay2.obr.repaint2();
-			}
-    	}
-    }*/
     Tab tab1, tab2;
     SckBis mConnection2;
     interfejsbis intbis;
+    MenuItem kleva1;
+    MenuItem kleva2;
+    MenuItem kleva3;
+    boolean trybview;
 	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
 	public boolean onCreateOptionsMenu (Menu menut)
 	{
 		menu=menut;
-        MenuItem kleva1=menu.add(0, 1, 0, "koczargi");
-        MenuItem kleva2=menu.add(0, 2, 0, "piekary śląskie");
-        MenuItem kleva3=menu.add(0, 3, 0, "pułtusk");
-        return true;
+        kleva1=menu.add(0, 1, 0, "koczargi");
+        kleva1.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        kleva2=menu.add(0, 2, 0, "piekary śląskie");
+        kleva2.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        kleva3=menu.add(0, 3, 0, "pułtusk");
+        kleva3.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
+        kleva1.setIcon(R.drawable.znak);
+        kleva2.setIcon(R.drawable.znak);
+        kleva3.setIcon(R.drawable.znak);
+        return super.onCreateOptionsMenu(menu);
 	}
 	public boolean onOptionsItemSelected(MenuItem item) {
 		Toast.makeText(MainActivity.this, "DOŁOWIEC", Toast.LENGTH_SHORT);
 	    if(item.getItemId()==1)
 	    {
-	    	if(lay1.t9!=null)
+	    	if(trybview==true)
 	    	{
-	    		lay1.t9.setText("PASGAL");
+	    		setContentView(vu1);
+	    		trybview=false;
+	    	}
+	    	else
+	    	{
+	    		setContentView(mapa1);
+	    		trybview=true;
 	    	}
 	    }
 	    if(item.getItemId()==2)
 	    {
-	    	Toast.makeText(this, "piekary śląskie", Toast.LENGTH_SHORT);
+			if(mService!=null)
+			{
+				if(mService.nagr()==false)
+				{
+					mService.setnagrywanie(true);
+				}
+				else
+				{
+					mService.setnagrywanie(false);
+				}
+			}
 	    }
 	    if(item.getItemId()==3)
 	    {
-	    	Toast.makeText(this, "pułtusk", Toast.LENGTH_SHORT);
+	    	if(!follow)
+	    	{
+	    		follow=true;
+	    		kleva3.setIcon(R.drawable.znak3);
+	    	}
+	    	else
+	    	{
+	    		follow=false;
+	    		kleva3.setIcon(R.drawable.znak);
+	    	}
 	    }
 	    return true;
 	}
+	    private void getOverflowMenu()
+	    {
+
+	        try {
+	           ViewConfiguration config = ViewConfiguration.get(this);
+	           java.lang.reflect.Field menuKeyField = ViewConfiguration.class.getDeclaredField("sHasPermanentMenuKey");
+	           if(menuKeyField != null) {
+	               menuKeyField.setAccessible(true);
+	               menuKeyField.setBoolean(config, false);
+	           }
+	       } catch (Exception e) {
+	           e.printStackTrace();
+	       }
+	     }
     public void onCreate(Bundle savedInstanceState)
     {
-        super.onCreate(savedInstanceState);
-        //this.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        String rku = Environment.getExternalStorageDirectory().toString();
+    	super.onCreate(savedInstanceState);
+    	trybview=false;
+    	getOverflowMenu();
         vu1=new LinearLayout(this);
-        
+        String rku = Environment.getExternalStorageDirectory().toString();
         gendir = new File(rku + "/nap_program");    
         gendir.mkdirs();
         netdir =new File(gendir.getAbsolutePath()+ "/net_download");
         netdir.mkdirs();
         setTheme(android.R.style.Theme_Holo);
-		ActionBar bar = getActionBar();
-		bar.setDisplayShowHomeEnabled(false);
-		bar.setDisplayShowTitleEnabled(false);
 		v1=new ScrollView(this);
 		vu1.addView(v1);
 		lay1=new DaneLokalizacyjne(this);
 		lay1.setOrientation (LinearLayout.VERTICAL);
 		v1.addView(lay1);
-	    	frtest1=new Myfragment();
-	    	frtest2=new ArticleFragment2();
-	    bar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
-	    tab1 = bar.newTab();
-	    tab1.setText("USTAWIENIA");
-	    tab1.setTag("1");
-	    tab1.setTabListener(new MyTabListener(frtest2));
-	    bar.addTab(tab1);
-	    tab2 = bar.newTab();
-	    tab2.setText("MAPA");
-	    tab2.setTag("2");
-	    tab2.setTabListener(new MyTabListener(frtest1));
-	    bar.addTab(tab2);
-		//setContentView(vu1);
-		//setContentView((Fragment)frtest1);
+		mapa1=new Mapa(this);
+		setContentView(vu1);
 		lay1.sendError();
+	    ActionBar atk=getActionBar();
+	    atk.setDisplayHomeAsUpEnabled(true);
+	    atk.setHomeButtonEnabled(true);
 		Random r=new Random();
 		datex=(r.nextInt(1000));
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu)
+    {
+    	
+        return super.onPrepareOptionsMenu(menu);
     }
     boolean mBound = false;
     protected void onStart()
@@ -904,48 +864,7 @@ public class MainActivity extends Activity
     protected void onDestroy()
     {
     	super.onDestroy();
-        if(frtest1.mapa1.obr.ig!=null)
-        	frtest1.mapa1.obr.ig.zapisz();
+        if(mapa1.obr.ig!=null)
+        	mapa1.obr.ig.zapisz();
     }
-	public class MyTabListener implements ActionBar.TabListener {
-		Fragment fragment;
-		
-		public MyTabListener(Fragment fragment) {
-			this.fragment = fragment;
-		}
-		
-	    public void onTabSelected(Tab tab, FragmentTransaction ft) {
-	    	ft.add(0, fragment, "siejbik");
-	    	ft.replace(android.R.id.content, fragment);
-		}
-		
-		public void onTabUnselected(Tab tab, FragmentTransaction ft) {
-			ft.remove(fragment);
-		}
-		
-		public void onTabReselected(Tab tab, FragmentTransaction ft) {
-			// nothing done here
-		}
-	}
-	/*public void onTabReselected(Tab arg0, FragmentTransaction arg1) {
-		// TODO Auto-generated method stub
-		
-	}
-	@Override
-	public void onTabSelected(Tab arg0, FragmentTransaction arg1)
-	{
-		
-		if(arg0.getTag().equals("1"))
-			MainActivity.this.setContentView(vu1);
-		if(arg0.getTag().equals("2"))
-			MainActivity.this.setContentView(lay2);
-	}
-	@Override
-	public void onTabUnselected(Tab arg0, FragmentTransaction arg1) {
-		// TODO Auto-generated method stub
-		if(arg0.getTag().equals("1"))
-			arg1.detach(frtest1);
-		if(arg0.getTag().equals("2"))
-			arg1.detach(frtest2);
-	}*/
 }
