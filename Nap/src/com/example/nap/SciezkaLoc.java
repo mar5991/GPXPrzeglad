@@ -85,11 +85,11 @@ public class SciezkaLoc
 	    private final static String ATTR_LAT = "lat=\"";
 	    private final static String ATTR_LON = "lon=\"";
 	    private final static String ELEM_ELE = "<ele>";
-	    private final static String ELEM_TIM = "<galce>";
+	    private final static String ELEM_TIM = "<galakce>";
 	 
 	    private double mLat = 0.0;
 	    private double mLon = 0.0;
-	    public long mTim = 0;
+	    private long mTim = 0;
 	    private double mEle = Double.MIN_VALUE;
 	 
 	    public TrkPt () {
@@ -248,9 +248,9 @@ public class SciezkaLoc
     	wynik.lat=beta.lat*stos+alfa.lat*(1-stos);
     	wynik.lon=beta.lon*stos+alfa.lon*(1-stos);
     	wynik.ele=beta.ele*stos+alfa.ele*(1-stos);
-    	wynik.time_from_start=beta.time_from_start*stos+alfa.time_from_start*(1-stos);
+    	wynik.time_from_start=(float) beta.time_from_start*stos+(float)alfa.time_from_start*(1-stos);
     	wynik.dist_przebyty=beta.dist_przebyty*stos+alfa.dist_przebyty*(1-stos);
-    	double timetemp=beta.time*stos+alfa.time*(1-stos);
+    	double timetemp=(double)beta.time*stos+(double)alfa.time*(1-stos);
     	wynik.time=(long) timetemp;
     	return wynik;
     }
@@ -344,6 +344,10 @@ public class SciezkaLoc
 		now.lon=pdt.getLon();
 		now.ele=pdt.getEle();
 		now.time=pdt.mTim;
+		lg.x=(float) Math.min(lg.x, now.lon);
+		pd.x=(float) Math.max(pd.x, now.lon);
+		lg.y=(float) Math.max(lg.y, now.lat);
+		pd.y=(float) Math.min(pd.y, now.lat);
 		if(size()==0)
 		{
 			now.time_from_start=0;
@@ -351,13 +355,12 @@ public class SciezkaLoc
 		}
 		else
 		{
-			now.time_from_start=0;
-			//(float) now.time/1000-(float)data.get(0).time/1000;
+			now.time_from_start=now.time/1000-data.get(0).time/1000;
 			now.dist_przebyty=calcdist(now.lat, now.lon, data.get(size()-1).lat, data.get(size()-1).lon)+data.get(size()-1).dist_przebyty;
 		}
 				data.add(now);
+				pdt = gpt.nextTrkPt();
 		}
-		pdt = gpt.nextTrkPt();
 		}
 		 catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -398,31 +401,41 @@ public class SciezkaLoc
 	}*/
 	punktloc getpkt_t(double time)
 	{
-		double akttime=0;
-		int id=1;
-		while(akttime<time)
+		int id_l=0;
+		int id_r=size()-1;
+		while(id_r-id_l>1)
 		{
-			akttime=data.get(id).time_from_start;
-			id++;
+			int sr=(id_r+id_l)/2;
+			double tmp=data.get(sr).time_from_start;
+			if(tmp>time)
+				id_r=sr;
+			else
+				id_l=sr;
 		}
-		double poptime=data.get(id-1).time_from_start;
+		double akttime=data.get(id_r).time_from_start;
+		double poptime=data.get(id_l).time_from_start;
 		double stos=0.5;
-		if(akttime-poptime!=0)
+		if((akttime-poptime)!=0)
 			stos=(time-poptime)/(akttime-poptime);
-		return mieszaj(data.get(id-1), data.get(id), stos);
+		return mieszaj(data.get(id_l), data.get(id_r), stos);
 	}
 	punktloc getpkt_d(double distance)
 	{
-		double aktdist=0;
-		int id=0;
-		while(aktdist<distance)
+		int id_l=0;
+		int id_r=size()-1;
+		while(id_r-id_l>1)
 		{
-			id++;
-			aktdist=data.get(id).dist_przebyty;
+			int sr=(id_r+id_l)/2;
+			double tmp=data.get(sr).dist_przebyty;
+			if(tmp>distance)
+				id_r=sr;
+			else
+				id_l=sr;
 		}
-		double popdist=data.get(Math.max(id-1, 0)).dist_przebyty;
+		double aktdist=data.get(id_r).dist_przebyty;
+		double popdist=data.get(id_l).dist_przebyty;
 		double stos=(distance-popdist)/(aktdist-popdist);
-		return mieszaj(data.get(Math.max(id-1, 0)), data.get(id), stos);
+		return mieszaj(data.get(id_l), data.get(id_r), stos);
 	}
 	PointF getlg()
 	{
@@ -444,12 +457,16 @@ public class SciezkaLoc
 			return 0;
 		return data.get(size()-1).time_from_start;
 	}
-	/*double speedmph(double time1, double time2)
+	double speedmph_t(double time1, double time2)
 	{
-		
+		punktloc a1=getpkt_t(time1);
+		punktloc a2=getpkt_t(time2);
+		return (a2.dist_przebyty-a1.dist_przebyty)/(a2.time_from_start-a1.time_from_start);
 	}
-	double speedmph(double poz1, double poz2)
+	double speedmph_p(double poz1, double poz2)
 	{
-		
-	}*/
+		punktloc a1=getpkt_d(poz1);
+		punktloc a2=getpkt_d(poz2);
+		return (a2.dist_przebyty-a1.dist_przebyty)/(a2.time_from_start-a1.time_from_start);
+	}
 }

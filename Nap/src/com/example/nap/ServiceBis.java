@@ -55,11 +55,7 @@ public class ServiceBis extends Service implements LocationListener
 				fki.write(String.valueOf(akt.lon));
 				fki.write("\">");
 				fki.write("<time>");
-				Date date = new Date(akt.time);
-				DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-				DateFormat formatter2 = new SimpleDateFormat("HH:mm:ssZ");
-				String dateFormatted = formatter.format(date)+"T"+formatter2.format(date);
-				fki.write(dateFormatted);
+				fki.write(TimeConvert.timetxt(akt.time));
 				fki.write("</time>");
 				fki.write("<galakce>");
 				fki.write(String.valueOf(akt.time));

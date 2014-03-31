@@ -30,6 +30,7 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.CornerPathEffect;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -68,7 +69,7 @@ import com.example.nap.HelloService.interfejs;
 import com.example.nap.SciezkaLoc.punktloc;
 import com.example.nap.ServiceBis.LocalBinderBis;
 
-@SuppressLint({ "ValidFragment", "ShowToast" })
+@SuppressLint("ShowToast")
 @TargetApi(Build.VERSION_CODES.HONEYCOMB)
 public class MainActivity extends Activity
 {
@@ -147,7 +148,7 @@ public class MainActivity extends Activity
 	    }
 	    return false;
 	}
-	boolean follow=false;
+	boolean follow;
 	class Obrazek extends ImageView
 	{
 		private Canvas can;
@@ -165,7 +166,6 @@ public class MainActivity extends Activity
 		int wys;
 		ImageLoader ig;
 		boolean jedentouch;
-		boolean follow;
 		long actiontime;
 		long recentrepaint;
 		long sreptime;
@@ -198,15 +198,14 @@ public class MainActivity extends Activity
 			mx.postTranslate((kpk.x*-1)+szer/2, wys-kpk.y-(wys/2));
 			mx.postScale(zoox, zoox, szer/2, wys/2);
 			old_matrix=new Matrix(mx);
-			repaint();
 		}
 		void ustawwsp(PointF wsplg, PointF wsppd)
 		{
 			PointF lg=WspGeoToWspEkr(wsplg);
 			PointF pd=WspGeoToWspEkr(wsppd);
 			float zoomx=1;
-			float rozx=pd.x-lg.x;
-			float rozy=lg.y-pd.y;
+			float rozx=Math.abs(pd.x-lg.x);
+			float rozy=Math.abs(lg.y-pd.y);
 			if((rozx/rozy)>(szer/wys))
 			{
 				zoomx=szer/rozx;
@@ -215,12 +214,12 @@ public class MainActivity extends Activity
 			{
 				zoomx=wys/rozy;
 			}
+			zoomx/=1.1;
 			PointF kpk=new PointF((pd.x+lg.x)/2, (pd.y+lg.y)/2);
 			mx.reset();
 			mx.postTranslate((kpk.x*-1)+szer/2, wys-kpk.y-(wys/2));
 			mx.postScale(zoomx, zoomx, szer/2, wys/2);
 			old_matrix=new Matrix(mx);
-			repaint();
 		}
 		float aktualzoom()
 		{
@@ -317,39 +316,72 @@ public class MainActivity extends Activity
 			p.setStrokeWidth(3);
 			p.setStyle(Paint.Style.FILL);
 			p.setARGB(129, 0, 153, 204);
-			if(doble!=null)
+			if(doble!=null && doble.size()>1)
 			{
 				int s1=doble.size();
 				p.setStyle(Paint.Style.STROKE);
-				p.setARGB(255, 51, 181, 229);
+				p.setARGB(255, 0, 0, 0);
+				p.setStrokeWidth(20);
+				    p.setDither(true);                    // set the dither to true
+				    p.setStyle(Paint.Style.STROKE);       // set to STOKE
+				    p.setStrokeJoin(Paint.Join.ROUND);    // set the join to round you want
+				    p.setStrokeCap(Paint.Cap.ROUND);      // set the paint cap to round too
+				    p.setPathEffect(new CornerPathEffect(10) );   // set the path effect when they join.
+				    p.setAntiAlias(true);                         // set anti alias so it smooths
+				Path pth=new Path();
+				Path pth2=new Path();
+				punktloc alocb=doble.getpkt(0);
+				PointF p77=transform(WspGeoToWspEkr(new PointF((float)alocb.lon, (float)alocb.lat)), mx);
+				pth.moveTo(p77.x, p77.y);
+				pth2.moveTo(p77.x, p77.y);
 				for(int i=1; i<s1; i++)
 				{
-					punktloc aloc=doble.getpkt(i-1);
 					punktloc alocbis=doble.getpkt(i);
-					PointF p1=transform(WspGeoToWspEkr(new PointF((float)aloc.lon, (float)aloc.lat)), mx);
 					PointF p2=transform(WspGeoToWspEkr(new PointF((float)alocbis.lon, (float)alocbis.lat)), mx);
-					canm.drawLine(p1.x, p1.y, p2.x, p2.y, p);
+					pth.lineTo(p2.x, p2.y);
+					//canm.drawLine(p1.x, p1.y, p2.x, p2.y, p);
 				}
+				int cz_diff=60;
+				canm.drawPath(pth, p);
+				p.setStrokeWidth(10);
+				p.setARGB(255, 51, 181, 229);
+				canm.drawPath(pth, p);
+				int oldprt=0;
+				for(int i=1; i<s1; i++)
+				{
+					punktloc alocbis=doble.getpkt(i);
+					PointF p2=transform(WspGeoToWspEkr(new PointF((float)alocbis.lon, (float)alocbis.lat)), mx);
+					pth2.lineTo(p2.x, p2.y);
+					int prt=(int)alocbis.time_from_start;
+					prt=prt%(cz_diff*2);
+					prt/=60;
+					if(oldprt!=prt)
+					{
+						canm.drawPath(pth2, p);
+						pth2=new Path();
+						pth2.moveTo(p2.x,  p2.y);
+						oldprt=prt;
+						if(prt==1)
+						{
+							p.setARGB(255, 0, 153, 204);
+						}
+						else
+						{
+							p.setARGB(255, 51, 181, 229);
+						}
+					}
+				}
+				canm.drawPath(pth2, p);
 				double dlkcal=doble.dlugosc_all();
 				for(double i=0; i<dlkcal; i+=1000)
 				{
 					punktloc tmk=doble.getpkt_d(i);
-					p.setARGB(220, 255, 68, 68);
-					p.setStyle(Paint.Style.FILL_AND_STROKE);
+					p.setARGB(255, 0, 0, 0);
+					p.setStyle(Paint.Style.FILL);
 					PointF pa=transform(WspGeoToWspEkr(new PointF((float)tmk.lon, (float)tmk.lat)), mx);
-					RectF oval=new RectF(pa.x-10, pa.y+10, pa.x+10, pa.y-10);
+					RectF oval=new RectF(pa.x-8, pa.y+8, pa.x+8, pa.y-8);
 					canm.drawOval(oval, p);
 				}
-				/*double tikcal=doble.czas_all();
-				for(double i=0; i<tikcal; i+=600)
-				{
-					punktloc tmk=doble.getpkt_t(i);
-					p.setARGB(220, 255, 187, 51);
-					p.setStyle(Paint.Style.FILL_AND_STROKE);
-					PointF pa=transform(WspGeoToWspEkr(new PointF((float)tmk.lon, (float)tmk.lat)), mx);
-					RectF oval=new RectF(pa.x-10, pa.y+10, pa.x+10, pa.y-10);
-					canm.drawOval(oval, p);
-				}*/
 			}
 			p.setARGB(255, 0, 153, 204);
 			if(aktloc!=null)
@@ -517,11 +549,11 @@ public class MainActivity extends Activity
 		private TextView alt;
 		private TextView tim;
 		private TextView bea;
+		private TextView scdat;
 		EditText ed1;
 		Button t4;
 		CheckBox rad1;
 		CheckBox rad2;
-		private Button t6;
 		public DaneLokalizacyjne (Context context) 
 		{
 			super(context);
@@ -540,12 +572,13 @@ public class MainActivity extends Activity
 			tim = new TextView(context);
 			bea = new TextView(context);
 			ed1 = new EditText(context);
+			scdat = new TextView(context);
 			t4 = new Button(context);
-			t6 = new Button(context);
 			this.addView(pro);
 			this.addView(alt);
 			this.addView(tim);
 			this.addView(bea);
+			this.addView(scdat);
 			this.addView(rad1);
 			this.addView(rad2);
 			t4.setText("POBIERZ FOLDER");
@@ -553,20 +586,6 @@ public class MainActivity extends Activity
 			this.addView(t4);
 			rad1.setText("INTERNET DOWNLOAD");
 			rad2.setText("FOLLOW");
-			t6.setText("ŚCIEŻKA GPX");
-			t6.setOnClickListener(new View.OnClickListener(){
-			public void onClick(View v)
-			{
-				if(mService!=null && !mService.nagr())
-				{
-					mService.sciezka.clear();
-					Intent wpIntent = new Intent();
-					wpIntent.setType("file/gpx");
-					wpIntent.setAction(Intent.ACTION_GET_CONTENT);
-					wpIntent.putExtra("return-data", true); //added snippet
-					startActivityForResult(Intent.createChooser(wpIntent, "xxx"),1);  }
-			}
-	        });
 			t4.setOnClickListener(new View.OnClickListener(){
 			public void onClick(View v)
 			{
@@ -575,7 +594,6 @@ public class MainActivity extends Activity
 					mapa1.obr.ig=new ImageLoader(newpath);
 			}
 	        });
-			this.addView(t6);
 		}
 		public void sendData(Location location)
 		{
@@ -596,7 +614,7 @@ public class MainActivity extends Activity
 			pre.setText("Predkosc: "+String.valueOf(preX)+" km/h");
 			pro.setText("Zrodlo: "+String.valueOf(proX));
 			alt.setText("Wysokosc: "+String.valueOf(altX)+" m");
-			tim.setText("Czas: "+String.valueOf(timX));
+			tim.setText("Czas: "+TimeConvert.timetxt(timX));
 			bea.setText("Kierunek: "+String.valueOf(beaX));
 			if(lay1.rad2.isChecked())
 			{
@@ -627,7 +645,9 @@ public class MainActivity extends Activity
 	                String ssa=selectedUri.getEncodedPath();
 	                if(!mService.nagr())
 	                	doble=new SciezkaLoc(ssa);
-	                noti(String.valueOf(mService.sciezka.size()), 121);
+	                mapa1.obr.ustawwsp(doble.lg, doble.pd);
+	                mapa1.obr.repaint();
+	    			scdat_text2(ssa);
 	           }
 	        }
 	}
@@ -665,7 +685,6 @@ public class MainActivity extends Activity
             if(bisservice.nagrywanie && bisservice!=null && bisservice.sciezka!=null && mService!=null)
             {
             	mService.sciezka=new SciezkaLoc();
-            	noti(String.valueOf(bisservice.sciezka.size()), 111);
             	mService.sciezka.copy(bisservice.sciezka);
             	mService.setnagrywanie(true);
             }
@@ -673,7 +692,6 @@ public class MainActivity extends Activity
             Intent intent2 = new Intent(MainActivity.this, ServiceBis.class);
             intent2.addCategory("kupabis");
             stopService(intent2);
-        	noti(String.valueOf(mService.sciezka.size()), 112);
         }
         public void onServiceDisconnected(ComponentName arg0)
         {
@@ -686,6 +704,29 @@ public class MainActivity extends Activity
 	File netdir;
     private Sck mConnection;
     HelloService mService;
+    public String scdat_text()
+    {
+    	String str="";
+    	if(doble!=null)
+    	{
+    		str+="Czas: "+String.valueOf(TimeConvert.timedifftxt((long)doble.czas_all()*1000))+'\n';
+    		str+="Długość (m): "+String.valueOf(doble.dlugosc_all())+'\n';
+    		str+="Liczba punktów: "+String.valueOf(doble.size())+'\n';
+    	}
+    	return str;
+    }
+    public void scdat_text1()
+    {
+    	String str=scdat_text();
+    	str="NAGRYWANIE"+'\n'+str;
+		lay1.scdat.setText(str);
+    }
+    public void scdat_text2(String sciezka)
+    {
+    	String str=scdat_text();
+    	str=sciezka+'\n'+str;
+		lay1.scdat.setText(str);
+    }
     public class interfejsbis implements interfejs
     {
     	public void zmianalokalizacji(Location arg0)
@@ -696,6 +737,10 @@ public class MainActivity extends Activity
 				mapa1.obr.setaktloc(arg0);
 				mapa1.obr.repaint2();
 			}
+            if(mService.nagr())
+            {
+    			scdat_text1();
+            }
     	}
 
 		@Override
@@ -703,7 +748,8 @@ public class MainActivity extends Activity
 		{
 			if(kleva2!=null)
 				kleva2.setIcon(R.drawable.znak3);
-			doble=mService.sciezka;		
+			doble=mService.sciezka;
+			scdat_text1();
 		}
 
 		@Override
@@ -711,6 +757,7 @@ public class MainActivity extends Activity
 			if(kleva2!=null)
 				kleva2.setIcon(R.drawable.znak);
 			doble=null;
+			lay1.scdat.setText("");
 		}
     }
     Tab tab1, tab2;
@@ -719,20 +766,24 @@ public class MainActivity extends Activity
     MenuItem kleva1;
     MenuItem kleva2;
     MenuItem kleva3;
+    MenuItem kleva4;
     boolean trybview;
 	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
 	public boolean onCreateOptionsMenu (Menu menut)
 	{
 		menu=menut;
-        kleva1=menu.add(0, 1, 0, "koczargi");
+        kleva1=menu.add(0, 1, 0, "Mapa");
         kleva1.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
-        kleva2=menu.add(0, 2, 0, "piekary śląskie");
+        kleva2=menu.add(0, 2, 0, "Start nagrywanie");
         kleva2.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
-        kleva3=menu.add(0, 3, 0, "pułtusk");
+        kleva3=menu.add(0, 3, 0, "Start śledzenie");
         kleva3.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
+        kleva4=menu.add(0, 4, 0, "Pobierz ścieżkę");
+        kleva4.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
         kleva1.setIcon(R.drawable.znak);
         kleva2.setIcon(R.drawable.znak);
         kleva3.setIcon(R.drawable.znak);
+        kleva4.setIcon(R.drawable.znak);
         return super.onCreateOptionsMenu(menu);
 	}
 	public boolean onOptionsItemSelected(MenuItem item) {
@@ -741,12 +792,16 @@ public class MainActivity extends Activity
 	    {
 	    	if(trybview==true)
 	    	{
+	    		kleva1.setTitle("Mapa");
 	    		setContentView(vu1);
 	    		trybview=false;
 	    	}
 	    	else
 	    	{
+	    		kleva1.setTitle("Dane");
 	    		setContentView(mapa1);
+	    		if(mapa1!=null && mapa1.obr!=null)
+	    			mapa1.obr.repaint();
 	    		trybview=true;
 	    	}
 	    }
@@ -756,10 +811,12 @@ public class MainActivity extends Activity
 			{
 				if(mService.nagr()==false)
 				{
+		    		kleva2.setTitle("Stop nagrywanie");
 					mService.setnagrywanie(true);
 				}
 				else
 				{
+		    		kleva2.setTitle("Start nagrywanie");
 					mService.setnagrywanie(false);
 				}
 			}
@@ -769,13 +826,29 @@ public class MainActivity extends Activity
 	    	if(!follow)
 	    	{
 	    		follow=true;
+	    		kleva3.setTitle("Stop śledzenie");
 	    		kleva3.setIcon(R.drawable.znak3);
+	    		mapa1.obr.repaint();
 	    	}
 	    	else
 	    	{
 	    		follow=false;
+	    		kleva3.setTitle("Start śledzenie");
 	    		kleva3.setIcon(R.drawable.znak);
+	    		mapa1.obr.repaint();
 	    	}
+	    }
+	    if(item.getItemId()==4)
+	    {
+			if(mService!=null && !mService.nagr())
+			{
+				mService.sciezka.clear();
+				Intent wpIntent = new Intent();
+				wpIntent.setType("file/gpx");
+				wpIntent.setAction(Intent.ACTION_GET_CONTENT);
+				wpIntent.putExtra("return-data", true); //added snippet
+				startActivityForResult(Intent.createChooser(wpIntent, "xxx"),1);
+			}
 	    }
 	    return true;
 	}
@@ -796,6 +869,7 @@ public class MainActivity extends Activity
     public void onCreate(Bundle savedInstanceState)
     {
     	super.onCreate(savedInstanceState);
+    	follow=false;
     	trybview=false;
     	getOverflowMenu();
         vu1=new LinearLayout(this);
@@ -816,6 +890,9 @@ public class MainActivity extends Activity
 	    ActionBar atk=getActionBar();
 	    atk.setDisplayHomeAsUpEnabled(true);
 	    atk.setHomeButtonEnabled(true);
+		String newpath=gendir.getAbsolutePath()+"/"+"net_download";
+		if(mapa1!=null)
+			mapa1.obr.ig=new ImageLoader(newpath);
 		Random r=new Random();
 		datex=(r.nextInt(1000));
     }

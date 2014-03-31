@@ -76,11 +76,7 @@ public class HelloService extends Service implements LocationListener
 				fki.write(String.valueOf(akt.lon));
 				fki.write("\">");
 				fki.write("<time>");
-				Date date = new Date(akt.time);
-				DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-				DateFormat formatter2 = new SimpleDateFormat("HH:mm:ssZ");
-				String dateFormatted = formatter.format(date)+"T"+formatter2.format(date);
-				fki.write(dateFormatted);
+				fki.write(TimeConvert.timetxt(akt.time));
 				fki.write("</time>");
 				fki.write("<galakce>");
 				fki.write(String.valueOf(akt.time));
@@ -113,11 +109,7 @@ public class HelloService extends Service implements LocationListener
     	{
             String rku = Environment.getExternalStorageDirectory().toString();
             File gendir = new File(rku + "/nap_program");
-            Date date=new Date(System.currentTimeMillis());
-			DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-			DateFormat formatter2 = new SimpleDateFormat("HH-mm-ss");
-			String dateFormatted = formatter.format(date)+"T"+formatter2.format(date);
-    		String sciez=gendir+"/"+dateFormatted+"mpx.gpx";
+    		String sciez=gendir+"/"+TimeConvert.timetxt(System.currentTimeMillis())+"mpx.gpx";
     		zapisz(sciez);
     		stopForeground(true);
     		inc.nagsto();
