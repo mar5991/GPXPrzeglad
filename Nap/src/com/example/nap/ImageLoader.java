@@ -20,7 +20,6 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 
 import com.example.nap.ImageData;
-import com.example.nap.MainActivity.Obrazek;
 
 public class ImageLoader
 	{
@@ -48,7 +47,7 @@ public class ImageLoader
         @Override
         protected void onPostExecute(byte[] result)
         {
-        	obb.repaint();
+        	obb.update();
         }
     }
     private byte[] downloadUrl(String myurl, String wyj) throws IOException
@@ -143,7 +142,7 @@ public class ImageLoader
 			}
 			return false;
 		}
-		void laduj(float minx, float maxx, float miny, float maxy, float zoom, Obrazek obb)
+		public void laduj(float minx, float maxx, float miny, float maxy, float zoom, Obrazek obb)
 		{
 			
 			int level=(int)(Math.log((zoom*4))/Math.log(2.0)); //level TODO

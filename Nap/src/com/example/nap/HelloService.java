@@ -109,7 +109,7 @@ public class HelloService extends Service implements LocationListener
     	{
             String rku = Environment.getExternalStorageDirectory().toString();
             File gendir = new File(rku + "/nap_program");
-    		String sciez=gendir+"/"+TimeConvert.timetxt(System.currentTimeMillis())+"mpx.gpx";
+    		String sciez=gendir+"/"+TimeConvert.timetxt2(System.currentTimeMillis())+"mpx.gpx";
     		zapisz(sciez);
     		stopForeground(true);
     		inc.nagsto();

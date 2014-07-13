@@ -66,6 +66,7 @@ import com.example.nap.ImageLoader;
 import com.example.nap.ImageData;
 import com.example.nap.HelloService.LocalBinder;
 import com.example.nap.HelloService.interfejs;
+import com.example.nap.Obrazek.VectorMapObrazek;
 import com.example.nap.SciezkaLoc.punktloc;
 import com.example.nap.ServiceBis.LocalBinderBis;
 
@@ -76,11 +77,11 @@ public class MainActivity extends Activity
 	@SuppressLint("ShowToast")
 	public class Mapa extends LinearLayout
 	{
-		Obrazek obr;
-		public Mapa (Context context) 
+		ObrazekW obr;
+		public Mapa (Context context, TextView pre) 
 		{
 			super(context);
-			obr = new Obrazek(context, 600, 1000);
+			obr = new ObrazekW(context, 600, 1000, pre);
 			this.addView(obr);
 		}
 		void mapix()
@@ -88,229 +89,24 @@ public class MainActivity extends Activity
 
 		}
 	}
-	Mapa mapa1;
-	Menu menu;
-	SciezkaLoc doble;
-	int datex;
-	public PointF transform(PointF old, Matrix mx)
+	public class ObrazekW extends Obrazek
 	{
-		float[] tab=new float[3];
-		tab[0]=old.x;
-		tab[1]=old.y;
-		mx.mapPoints(tab);
-		return new PointF(tab[0], tab[1]);
-	}
-	public boolean czy_pokrywajo(PointF lewydolny1, PointF prawygorny1, PointF lewydolny2, PointF prawygorny2)
-	{
-		if(lewydolny1.x<prawygorny2.x && lewydolny2.x<prawygorny1.x)
-			if(lewydolny1.y<prawygorny2.y && lewydolny2.y<prawygorny1.y)
-				return true;
-		return false;
-	}
-	float min(float alfa, float beta)
-	{
-		if(alfa>beta)
-			return beta;
-		return alfa;
-	}
-	float max(float alfa, float beta)
-	{
-		if(alfa<beta)
-			return beta;
-		return alfa;
-	}
-	public PointF WspGeoToWspEkr(PointF old)
-	{
-		return new PointF((float)((old.x/360.0*1000.0)+500), (float) (500.0-Math.log(Math.tan((Math.PI/4.0)+((old.y/180.0*Math.PI)/2.0)))/Math.PI*500.0 ));
-	}
-	public PointF WspEkrtoWspGeo(PointF old)
-	{
-		return new PointF((float)((old.x-500)*360.0/1000.0), (float) ((2*Math.atan(Math.exp((500.0-old.y)/500.0*Math.PI))-Math.PI/2.0)/Math.PI*180.0));
-	}
-	public float distance(PointF first, PointF second)
-	{
-		return (float) Math.sqrt((second.x-first.x)*(second.x-first.x)+(second.y-first.y)*(second.y-first.y));
-	}
-	public double kierunek(PointF first, PointF second)
-	{
-		double deltaX=second.x-first.x;
-		double deltaY=second.y-first.y;
-		return Math.atan2(deltaY, deltaX)*180/Math.PI;
-	}
-	public boolean isNetworkAvailable() {
-	    ConnectivityManager cm = (ConnectivityManager) 
-	      getSystemService(Context.CONNECTIVITY_SERVICE);
-	    NetworkInfo networkInfo = cm.getActiveNetworkInfo();
-	    // if no network is available networkInfo will be null
-	    // otherwise check if we are connected
-	    if (networkInfo != null && networkInfo.isConnected()) {
-	        return true;
-	    }
-	    return false;
-	}
-	boolean follow;
-	class Obrazek extends ImageView
-	{
-		private Canvas can;
-		private Bitmap btu;
-		private Bitmap mbtu;
-		private Matrix mx;
-		private Matrix old_matrix;
-		float oldx;
-		float oldy;
-		float oldxBIS;
-		float oldyBIS;
-		int index1;
-		int index2;
-		int szer;
-		int wys;
-		ImageLoader ig;
-		boolean jedentouch;
-		long actiontime;
-		long recentrepaint;
-		long sreptime;
-		private Location aktloc;
-		ArrayList <Location> punkty2;
-		boolean przesAvailable()
-		{
-			return true;
+		Location aktloc;
+		public ObrazekW(Context context, int sz, int wy, TextView pre) {
+			super(context, sz, wy, pre);
 		}
-		void repaint4()
+		void setaktloc(Location loc)
 		{
-			long aktt=System.currentTimeMillis();
-			if(aktt-30>=sreptime)
+			aktloc=loc;
+			if(!przesAvailable())
 			{
-				repaint2();
+				PointF pf=new PointF();
+				pf.x=(float)loc.getLongitude();
+				pf.y=(float)loc.getLatitude();
+				setfollow(pf);
 			}
 		}
-		void repaint3()
-		{
-			long aktt=System.currentTimeMillis();
-			if(aktt-1000>recentrepaint)
-			{
-				repaint();
-			}
-		}
-		void ustawwsp(PointF wsp, float zoox)
-		{
-			PointF kpk=WspGeoToWspEkr(wsp);
-			mx.reset();
-			mx.postTranslate((kpk.x*-1)+szer/2, wys-kpk.y-(wys/2));
-			mx.postScale(zoox, zoox, szer/2, wys/2);
-			old_matrix=new Matrix(mx);
-		}
-		void ustawwsp(PointF wsplg, PointF wsppd)
-		{
-			PointF lg=WspGeoToWspEkr(wsplg);
-			PointF pd=WspGeoToWspEkr(wsppd);
-			float zoomx=1;
-			float rozx=Math.abs(pd.x-lg.x);
-			float rozy=Math.abs(lg.y-pd.y);
-			if((rozx/rozy)>(szer/wys))
-			{
-				zoomx=szer/rozx;
-			}
-			else
-			{
-				zoomx=wys/rozy;
-			}
-			zoomx/=1.1;
-			PointF kpk=new PointF((pd.x+lg.x)/2, (pd.y+lg.y)/2);
-			mx.reset();
-			mx.postTranslate((kpk.x*-1)+szer/2, wys-kpk.y-(wys/2));
-			mx.postScale(zoomx, zoomx, szer/2, wys/2);
-			old_matrix=new Matrix(mx);
-		}
-		float aktualzoom()
-		{
-			float scale1=distance(transform (new PointF(0, 0), mx), transform (new PointF(1, 1), mx));
-			return (scale1/(float) Math.sqrt(2));
-		}
-		void repaint()
-		{
-			if(follow && aktloc!=null)
-			{
-				PointF pff=new PointF();
-				pff.x=(float) aktloc.getLongitude();
-				pff.y=(float) aktloc.getLatitude();		
-				ustawwsp(pff, aktualzoom());
-			}
-			recentrepaint=System.currentTimeMillis();
-			sreptime=recentrepaint;
-			old_matrix=new Matrix(mx);
-			btu=Bitmap.createBitmap(szer, wys, Bitmap.Config.ARGB_8888);
-			Bitmap btp=Bitmap.createBitmap(szer, wys, Bitmap.Config.ARGB_8888);
-			mbtu=Bitmap.createBitmap(szer, wys, Bitmap.Config.ARGB_8888);
-			can=new Canvas(btu);
-			Canvas canp=new Canvas(btp);
-			Canvas canm=new Canvas(mbtu);
-			Matrix ing=new Matrix(mx);
-			ing.invert(ing);
-			PointF wpta=WspEkrtoWspGeo(transform(new PointF(0,0), ing));
-			PointF wptb=WspEkrtoWspGeo(transform(new PointF(0,wys), ing));
-			PointF wptc=WspEkrtoWspGeo(transform(new PointF(szer,wys), ing));
-			PointF wptd=WspEkrtoWspGeo(transform(new PointF(szer,0), ing));
-			PointF apta=transform(new PointF(0,0), ing);
-			PointF aptb=transform(new PointF(0,wys), ing);
-			PointF aptc=transform(new PointF(szer,wys), ing);
-			PointF aptd=transform(new PointF(szer,0), ing);
-			float minx=min(min(wpta.x, wptb.x), min(wptc.x, wptd.x));
-			float maxx=max(max(wpta.x, wptb.x), max(wptc.x, wptd.x));
-			float miny=min(min(wpta.y, wptb.y), min(wptc.y, wptd.y));
-			float maxy=max(max(wpta.y, wptb.y), max(wptc.y, wptd.y));
-			PointF cclewydolny=new PointF(min(min(apta.x, aptb.x), min(aptc.x, aptd.x)), min(min(apta.y, aptb.y), min(aptc.y, aptd.y)));
-			PointF ccprawygorny=new PointF(max(max(apta.x, aptb.x), max(aptc.x, aptd.x)), max(max(apta.y, aptb.y), max(aptc.y, aptd.y)));
-			float scale1=distance(transform (new PointF(0, 0), mx), transform (new PointF(1, 1), mx));
-			float scale3=distance(transform (new PointF(0, 0), mx), transform (new PointF(1, 0), mx));
-			if(ig!=null)
-			{
-				
-				if(netavail())
-				{
-					ig.laduj(minx, maxx, miny, maxy, scale3, this);
-				}
-				int s2=ig.imadat.size();
-				for(int i=0; i<s2; i++)
-				{
-					ImageData im=ig.imadat.get(i);
-					double scale2=distance(new PointF(0, 0), new PointF(im.rozdzielczoscx, im.rozdzielczoscy));
-					double scale=scale1*scale2;
-					//UWAGA MNOŻNIK 256 W NASTĘPNEJ LINIJCE JEST TYMCZASOWY I NIEPRAWIDŁOWY
-					if(scale>=1.6 && czy_pokrywajo(cclewydolny, ccprawygorny, im.lewydolny, new PointF(im.lewydolny.x+im.rozdzielczoscx*256, im.lewydolny.y+im.rozdzielczoscy*256)))
-					{
-						Matrix nmax=new Matrix();
-						nmax.reset();
-						nmax.postTranslate(im.lewydolny.x, im.lewydolny.y);
-						nmax.postScale(im.rozdzielczoscx, im.rozdzielczoscy, im.lewydolny.x, im.lewydolny.y);
-						Bitmap nbt;
-						if(im.bmp==null)
-						{
-							nbt=BitmapFactory.decodeFile(im.sciezka);
-							im.bmp=nbt;
-						}
-						else
-						{
-							nbt=im.bmp;
-						}
-						nmax.postConcat(mx);
-						Paint paintx = new Paint();
-						//paintx.setAlpha(100);
-						if(nbt!=null)
-							can.drawBitmap(nbt, nmax, paintx);
-					}
-					else
-					{
-						im.bmp=null;
-					}
-				}
-			}
-			rysujsciezke(canm);
-			Matrix zero=new Matrix();
-			canp.drawBitmap(btu, zero, null);
-			canp.drawBitmap(mbtu, zero, null);
-			this.setImageBitmap(btp);
-		}
-		void rysujsciezke(Canvas canm)
+		void rysujsciezke(Canvas canm, Matrix mx)
 		{
 			Paint p=new Paint();
 			p.setStrokeWidth(3);
@@ -331,13 +127,13 @@ public class MainActivity extends Activity
 				Path pth=new Path();
 				Path pth2=new Path();
 				punktloc alocb=doble.getpkt(0);
-				PointF p77=transform(WspGeoToWspEkr(new PointF((float)alocb.lon, (float)alocb.lat)), mx);
+				PointF p77=TimeConvert.transform(TimeConvert.WspGeoToWspEkr(new PointF((float)alocb.lon, (float)alocb.lat)), mx);
 				pth.moveTo(p77.x, p77.y);
 				pth2.moveTo(p77.x, p77.y);
 				for(int i=1; i<s1; i++)
 				{
 					punktloc alocbis=doble.getpkt(i);
-					PointF p2=transform(WspGeoToWspEkr(new PointF((float)alocbis.lon, (float)alocbis.lat)), mx);
+					PointF p2=TimeConvert.transform(TimeConvert.WspGeoToWspEkr(new PointF((float)alocbis.lon, (float)alocbis.lat)), mx);
 					pth.lineTo(p2.x, p2.y);
 					//canm.drawLine(p1.x, p1.y, p2.x, p2.y, p);
 				}
@@ -350,7 +146,7 @@ public class MainActivity extends Activity
 				for(int i=1; i<s1; i++)
 				{
 					punktloc alocbis=doble.getpkt(i);
-					PointF p2=transform(WspGeoToWspEkr(new PointF((float)alocbis.lon, (float)alocbis.lat)), mx);
+					PointF p2=TimeConvert.transform(TimeConvert.WspGeoToWspEkr(new PointF((float)alocbis.lon, (float)alocbis.lat)), mx);
 					pth2.lineTo(p2.x, p2.y);
 					int prt=(int)alocbis.time_from_start;
 					prt=prt%(cz_diff*2);
@@ -378,7 +174,7 @@ public class MainActivity extends Activity
 					punktloc tmk=doble.getpkt_d(i);
 					p.setARGB(255, 0, 0, 0);
 					p.setStyle(Paint.Style.FILL);
-					PointF pa=transform(WspGeoToWspEkr(new PointF((float)tmk.lon, (float)tmk.lat)), mx);
+					PointF pa=TimeConvert.transform(TimeConvert.WspGeoToWspEkr(new PointF((float)tmk.lon, (float)tmk.lat)), mx);
 					RectF oval=new RectF(pa.x-8, pa.y+8, pa.x+8, pa.y-8);
 					canm.drawOval(oval, p);
 				}
@@ -387,11 +183,11 @@ public class MainActivity extends Activity
 			if(aktloc!=null)
 			{
 				p.setStrokeWidth(3);
-				PointF p6=WspGeoToWspEkr(new PointF((float)aktloc.getLongitude(), (float)aktloc.getLatitude()));
-				PointF p65=WspGeoToWspEkr(new PointF((float)aktloc.getLongitude(), (float)aktloc.getLatitude()+1));
-				PointF p7=transform(p6, mx);
-				PointF p75=transform(p65, mx);
-				double kie0=kierunek(p7, p75);
+				PointF p6=TimeConvert.WspGeoToWspEkr(new PointF((float)aktloc.getLongitude(), (float)aktloc.getLatitude()));
+				PointF p65=TimeConvert.WspGeoToWspEkr(new PointF((float)aktloc.getLongitude(), (float)aktloc.getLatitude()+1));
+				PointF p7=TimeConvert.transform(p6, mx);
+				PointF p75=TimeConvert.transform(p65, mx);
+				double kie0=TimeConvert.kierunek(p7, p75);
 				p.setStyle(Paint.Style.STROKE);
 				RectF oval=new RectF(p7.x-20, p7.y+20, p7.x+20, p7.y-20);
 				canm.drawOval(oval, p);
@@ -410,122 +206,25 @@ public class MainActivity extends Activity
 				p.setStrokeWidth(5);
 			}
 		}
-		void repaint2()
-		{
-			sreptime=System.currentTimeMillis();
-			Bitmap btp=Bitmap.createBitmap(szer, wys, Bitmap.Config.ARGB_8888);
-			Bitmap mbtu=Bitmap.createBitmap(szer, wys, Bitmap.Config.ARGB_8888);
-			Canvas canm = new Canvas(mbtu);
-			rysujsciezke(canm);
-			Matrix pkt=new Matrix(old_matrix);
-			pkt.invert(pkt);
-			pkt.postConcat(mx);
-			can=new Canvas(btp);
-			can.drawBitmap(btu, pkt, null);
-			Matrix zero=new Matrix();
-			can.drawBitmap(mbtu, zero, null);
-			this.setImageBitmap(btp);
-		}
-		public void setaktloc(Location loc)
-		{
-			aktloc=new Location(loc);
-		}
-		public Obrazek(Context context, int sz, int wy) 
-		{
-			super(context);
-			recentrepaint=System.currentTimeMillis();
-			sreptime=recentrepaint;
-			jedentouch=false;
-			szer=sz;
-			wys=wy;
-			mx=new Matrix();
-			mx.reset();
-			old_matrix=new Matrix();
-			old_matrix.reset();
-			repaint();
-		}
-		public boolean onTouchEvent(MotionEvent event)
-		{
-			if(przesAvailable())
-			{
-				int action=event.getActionMasked();
-				if(jedentouch)
-				{
-					oldx=event.getX();
-					oldy=event.getY();
-					jedentouch=false;
-				}
-				if(action==MotionEvent.ACTION_DOWN)
-				{
-					oldx=event.getX();
-					oldy=event.getY();
-					boolean ack=false;
-					if(event.getEventTime()<actiontime+500)
-					{
-						ack=true;
-						mx.postScale(2, 2, oldx, oldy);
-					}
-					actiontime=event.getEventTime();
-					if(ack)
-						actiontime=0;
-					index1=event.getActionIndex();
-					repaint();
-				}
-				if(action==MotionEvent.ACTION_POINTER_DOWN)
-				{
-					index2=event.getActionIndex();
-					oldxBIS = event.getX(event.getPointerId(1));
-				    oldyBIS = event.getY(event.getPointerId(1));
-					oldx = event.getX(event.getPointerId(0));
-				    oldy = event.getY(event.getPointerId(0));
-				}
-				if(action==MotionEvent.ACTION_MOVE)
-				{
-					actiontime=0;
-					if(event.getPointerCount() == 1)
-					{
-						float newx=event.getX();
-						float newy=event.getY();
-						mx.postTranslate(newx-oldx, newy-oldy);
-						oldx=newx;
-						oldy=newy;
-						repaint4();
-					}
-					if(event.getPointerCount() > 1)
-					{
-						float newx=event.getX(event.getPointerId(0));
-						float newy=event.getY(event.getPointerId(0));
-						float newxBIS=event.getX(event.getPointerId(1));
-						float newyBIS=event.getY(event.getPointerId(1));
-						float divid=distance(new PointF(oldx, oldy), new PointF(newxBIS, newyBIS))/distance(new PointF(oldx, oldy), new PointF(oldxBIS, oldyBIS));
-						float kierun=(float) (kierunek(new PointF(oldx, oldy), new PointF(newxBIS, newyBIS))-kierunek(new PointF(oldx, oldy), new PointF(oldxBIS, oldyBIS)));
-						mx.postRotate(kierun, oldx, oldy);
-						mx.postScale(divid, divid, oldx, oldy);
-						divid=distance(new PointF(newxBIS, newyBIS), new PointF(newx, newy))/distance(new PointF(newxBIS, newyBIS), new PointF(oldx, oldy));
-						kierun=(float) (kierunek(new PointF(newxBIS, newyBIS), new PointF(newx, newy))-kierunek(new PointF(newxBIS, newyBIS), new PointF(oldx, oldy)));
-						mx.postRotate(kierun, newxBIS, newyBIS);
-						mx.postScale(divid, divid, newxBIS, newyBIS);
-						oldxBIS=newxBIS;
-						oldyBIS=newyBIS;
-						oldx=newx;
-						oldy=newy;
-						repaint4();
-					}
-				}
-				if(action==MotionEvent.ACTION_POINTER_UP)
-				{
-					jedentouch=true;
-					repaint();
-				}
-				if(action==MotionEvent.ACTION_UP)
-				{
-					repaint();
-				}
-				return true;
-			}
-			return false;
-		}
 	}
+	Mapa mapa1;
+	Menu menu;
+	SciezkaLoc doble;
+	int datex;
+
+	public boolean isNetworkAvailable() {
+	    ConnectivityManager cm = (ConnectivityManager) 
+	      getSystemService(Context.CONNECTIVITY_SERVICE);
+	    NetworkInfo networkInfo = cm.getActiveNetworkInfo();
+	    // if no network is available networkInfo will be null
+	    // otherwise check if we are connected
+	    if (networkInfo != null && networkInfo.isConnected()) {
+	        return true;
+	    }
+	    return false;
+	}
+	boolean follow;
+
 	public void onWindowFocusChanged(boolean hasFocus)
 	{
 		  super.onWindowFocusChanged(hasFocus);
@@ -626,14 +325,14 @@ public class MainActivity extends Activity
 		}
 		public void sendError()
 		{
-			sze.setText("Brak danych...");
+			/*sze.setText("Brak danych...");
 			dlu.setText(" ");
 			dok.setText(" ");
 			pre.setText(" ");
 			pro.setText(" ");
 			alt.setText(" ");
 			tim.setText(" ");
-			bea.setText(" ");
+			bea.setText(" ");*/
 		}
 	}
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) 
@@ -642,11 +341,10 @@ public class MainActivity extends Activity
 		  if (resultCode == RESULT_OK) {
 	            if (requestCode == 1) {
 	                Uri selectedUri = data.getData();
-	                String ssa=selectedUri.getEncodedPath();
+	                String ssa=selectedUri.getPath();
 	                if(!mService.nagr())
 	                	doble=new SciezkaLoc(ssa);
 	                mapa1.obr.ustawwsp(doble.lg, doble.pd);
-	                mapa1.obr.repaint();
 	    			scdat_text2(ssa);
 	           }
 	        }
@@ -735,7 +433,7 @@ public class MainActivity extends Activity
 			if(mapa1.obr!=null)
 			{
 				mapa1.obr.setaktloc(arg0);
-				mapa1.obr.repaint2();
+				mapa1.obr.update();
 			}
             if(mService.nagr())
             {
@@ -801,7 +499,7 @@ public class MainActivity extends Activity
 	    		kleva1.setTitle("Dane");
 	    		setContentView(mapa1);
 	    		if(mapa1!=null && mapa1.obr!=null)
-	    			mapa1.obr.repaint();
+	    			mapa1.obr.update();
 	    		trybview=true;
 	    	}
 	    }
@@ -828,14 +526,14 @@ public class MainActivity extends Activity
 	    		follow=true;
 	    		kleva3.setTitle("Stop śledzenie");
 	    		kleva3.setIcon(R.drawable.znak3);
-	    		mapa1.obr.repaint();
+	    		mapa1.obr.update();
 	    	}
 	    	else
 	    	{
 	    		follow=false;
 	    		kleva3.setTitle("Start śledzenie");
 	    		kleva3.setIcon(R.drawable.znak);
-	    		mapa1.obr.repaint();
+	    		mapa1.obr.update();
 	    	}
 	    }
 	    if(item.getItemId()==4)
@@ -884,7 +582,7 @@ public class MainActivity extends Activity
 		lay1=new DaneLokalizacyjne(this);
 		lay1.setOrientation (LinearLayout.VERTICAL);
 		v1.addView(lay1);
-		mapa1=new Mapa(this);
+		mapa1=new Mapa(this, lay1.pre);
 		setContentView(vu1);
 		lay1.sendError();
 	    ActionBar atk=getActionBar();
