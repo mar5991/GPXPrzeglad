@@ -4,6 +4,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.util.*;
 
 import android.graphics.PointF;
@@ -11,13 +15,13 @@ import android.widget.TextView;
 
 class VectorMapManager
 {
+	int WARSTWY = 16;
 	String SciezkaKatalogZPlikami;
 	double x1Ramka;
 	double y1Ramka;
 	double x2Ramka;
 	double y2Ramka;
 	int aktlevel;
-	TextView pre2;
 	class KafelekDane
 	{
 		String sciezka;
@@ -77,7 +81,7 @@ class VectorMapManager
 	        	return true;
 	        return false;
 		}
-		public int hashCode() {return 999;}
+		public int hashCode() {return (int)(id1+id2);}
 	}
 	class Linia
 	{
@@ -90,9 +94,28 @@ class VectorMapManager
 	}
 	Map <Long, Punkt> punkty;
 	Map <DoubleString, Linia> linie;
+	void ladujdijkstra(Dijkstra dij)
+	{
+		Iterator <DoubleString> it=linie.keySet().iterator();
+		while(it.hasNext())
+		{
+    		System.out.println("kania t1");
+			DoubleString kat=(DoubleString)it.next();
+    		System.out.println("kania t2");
+    		if(punkty.get(kat.id1)!=null && punkty.get(kat.id2)!=null)
+    		{
+    			dij.dodajkrawedz(kat.id1, kat.id2, linie.get(kat).typ, punkty.get(kat.id1).x, punkty.get(kat.id1).y, punkty.get(kat.id2).x, punkty.get(kat.id2).y);
+    		}
+			System.out.println("kania t3");
+		}
+	}
 	class Kafelek
 	{
+		float[][] pts;
+		int[] liczniki;
+		FloatBuffer[] vertexBuffer;
 		boolean zaladowane;
+		boolean wyswietlane;
 		Kafelek ojciec;
 		KafelekDane daneKafelka;
 		Set <Kafelek> dzieci;
@@ -144,6 +167,7 @@ class VectorMapManager
 				try
 				{
 					fx = new FileReader(sciezka);
+					File f;
 					BufferedReader buf = new BufferedReader(fx);
 					while(buf.ready())
 					{
@@ -157,11 +181,171 @@ class VectorMapManager
 				}
 			}
 		}
-		class LadowanieStart extends Ladowanie
+		class LadowanieByte
 		{
-			LadowanieStart(String sciezka)
+			void ladujLinieHeader(int level, double x1, double y1, double x2, double y2, int ks)
+			{
+				
+			}
+			void ladujLiniePunkt(RandomAccessFile in)
+			{
+				
+			}
+			void ladujLinieKrzywa(RandomAccessFile in)
+			{
+				
+			}
+			void ladujLinieChildren(String[] data)
+			{
+				
+			}
+			int little2big(int i) {
+			    return((i&0xff)<<24)+((i&0xff00)<<8)+((i&0xff0000)>>8)+((i>>24)&0xff);
+			}
+			LadowanieByte(String sciezka)
+			{
+				try 
+				{
+		        	System.out.println("kubacki qq "+sciezka);
+					RandomAccessFile in = new RandomAccessFile(sciezka, "r");
+		        	System.out.println("kubacki aa "+sciezka);
+					int level=in.readInt();
+					int punktySize = in.readInt();
+					int krzyweSize = in.readInt();
+					double x1=in.readDouble();
+					double y1=in.readDouble();
+					double x2=in.readDouble();
+					double y2=in.readDouble();
+					ladujLinieHeader(level, x1, y1, x2, y2, krzyweSize);
+		        	System.out.println("kubacki bb ");
+					for(int i=0; i<punktySize; i++)
+					{
+						ladujLiniePunkt(in);
+					}
+					for(int i=0; i<krzyweSize; i++)
+					{
+						ladujLinieKrzywa(in);
+					}
+		        	System.out.println("kubacki cc ");
+					int dzieciStringSize=in.readInt();
+					byte bbt[]=new byte[dzieciStringSize];
+					in.read(bbt, 0, dzieciStringSize);
+					String str = new String(bbt, "UTF-8");
+					String a[] = str.split("\n"); 
+					for(int i=0; i<a.length; i++)
+					{
+						String[] words = a[i].split(" ");
+						if(words.length==6)
+						{
+							ladujLinieChildren(words);
+						}
+					}
+					in.close();
+				}
+				catch (Exception e1)
+				{
+					System.out.println("kubacki "+e1.getMessage());
+				}
+			}
+		}
+		class LadowanieByteStart extends LadowanieByte
+		{
+			void ladujLinieHeader(int level, double x1, double y1, double x2, double y2, int ks)
+			{
+				pts=new float[WARSTWY][ks*4];
+			}
+			void ladujLiniePunkt(RandomAccessFile in)
+			{
+				try 
+				{
+					double x=in.readDouble();
+					double y=in.readDouble();
+					long id=in.readLong();
+					PointF pf=new PointF();
+					pf.x=(float)x;
+					pf.y=(float)y;
+					pf=TimeConvert.WspGeoToWspEkr(pf);
+					x=pf.x;
+					y=pf.y;
+					punkty.put(id, new Punkt(x,y));
+				}
+				catch (Exception e1)
+				{
+				}
+			}
+			void ladujLinieKrzywa(RandomAccessFile in)
+			{
+				try 
+				{
+					
+					long id1=in.readLong();
+					long id2=in.readLong();
+					int typ=in.readInt();
+					Punkt p1=punkty.get(id1);
+					Punkt p2=punkty.get(id2);
+					Linia ln = new Linia(typ);
+					ln.x1=p1.x;
+					ln.y1=p1.y;
+					ln.x2=p2.x;
+					int typ2=0;
+					if(typ==8000000)
+						typ2=1;
+					if(typ==6000000)
+						typ2=3;
+					if(typ==7000000)
+						typ2=2;
+					pts[typ2][liczniki[typ2]*4]=(float)p1.x;
+					pts[typ2][liczniki[typ2]*4+1]=(float)p1.y;
+					pts[typ2][liczniki[typ2]*4+2]=(float)p2.x;
+					pts[typ2][liczniki[typ2]*4+3]=(float)p2.y;
+					liczniki[typ2]++;
+					linie.put(new DoubleString(id1, id2), ln);
+				}
+				catch (Exception e1)
+				{
+				}
+			}
+			void ladujLinieChildren(String[] lista)
+			{
+			}
+			LadowanieByteStart(String sciezka)
 			{
 				super(sciezka);
+			}
+		}
+		class LadowanieByteStart2 extends LadowanieByte
+		{
+			void ladujLinieHeader(int level, double x1, double y1, double x2, double y2, int ks)
+			{
+				daneKafelka.level=level;
+				daneKafelka.x1=x1;
+				daneKafelka.y1=y1;
+				daneKafelka.x2=x2;
+				daneKafelka.y2=y2;
+			}
+			void ladujLiniePunkt(RandomAccessFile in)
+			{
+				try 
+				{
+					double x=in.readDouble();
+					double y=in.readDouble();
+					long id=in.readLong();
+				}
+				catch (Exception e1)
+				{
+				}
+			}
+			void ladujLinieKrzywa(RandomAccessFile in)
+			{
+				try 
+				{
+					long id1=in.readLong();
+					long id2=in.readLong();
+					int typ=in.readInt();
+				}
+				catch (Exception e1)
+				{
+				}
 			}
 			void ladujLinieChildren(String[] lista)
 			{
@@ -173,60 +357,92 @@ class VectorMapManager
 				nowe.level=daneKafelka.level+1;
 				Kafelek nowy = new Kafelek(nowe, Kafelek.this);
 			}
-			void ladujLiniePunkt(String[] lista)
-			{
-				double x=Double.parseDouble(lista[1]);
-				double y=Double.parseDouble(lista[2]);
-				long id=Long.parseLong(lista[3]);
-				PointF pf=new PointF();
-				pf.x=(float)x;
-				pf.y=(float)y;
-				pf=TimeConvert.WspGeoToWspEkr(pf);
-				x=pf.x;
-				y=pf.y;
-				punkty.put(id, new Punkt(x,y));
-				
-			}
-			void ladujLinieKrzywa(String[] lista)
-			{
-				long id1=Long.parseLong(lista[1]);
-				long id2=Long.parseLong(lista[2]);
-				int typ=Integer.parseInt(lista[3]);
-				Punkt p1=punkty.get(id1);
-				Punkt p2=punkty.get(id2);
-				Linia ln = new Linia(typ);
-				ln.x1=p1.x;
-				ln.y1=p1.y;
-				ln.x2=p2.x;
-				ln.y2=p2.y;
-				linie.put(new DoubleString(id1, id2), ln);
-			}
-		}
-		class LadowanieStop extends Ladowanie
-		{	
-			LadowanieStop(String sciezka)
+			LadowanieByteStart2(String sciezka)
 			{
 				super(sciezka);
 			}
-			void ladujLiniePunkt(String[] lista)
+		}
+		class LadowanieByteStop extends LadowanieByte
+		{
+			void ladujLinieHeader(int level, double x1, double y1, double x2, double y2, int ks)
 			{
-				long id=Long.parseLong(lista[3]);
-				punkty.remove(id);
 			}
-			void ladujLinieKrzywa(String[] lista)
+			void ladujLiniePunkt(RandomAccessFile in)
 			{
-				long id1=Long.parseLong(lista[1]);
-				long id2=Long.parseLong(lista[2]);
-				linie.remove(new DoubleString(id1, id2));
+				System.out.println("kubacki p0");
+				try 
+				{
+					double x=in.readDouble();
+					double y=in.readDouble();
+					long id=in.readLong();
+					System.out.println("kubacki p1 "+punkty.size());
+					punkty.remove(id);
+					System.out.println("kubacki p2 "+punkty.size());
+				}
+				catch (Exception e1)
+				{
+				}
+			}
+			void ladujLinieKrzywa(RandomAccessFile in)
+			{
+				try 
+				{
+					long id1=in.readLong();
+					long id2=in.readLong();
+					int typ=in.readInt();
+					linie.remove(new DoubleString(id1, id2));
+				}
+				catch (Exception e1)
+				{
+				}
+			}
+			void ladujLinieChildren(String[] lista)
+			{
+			}
+			LadowanieByteStop(String sciezka)
+			{
+				super(sciezka);
+	        	System.out.println("kubacki yy "+sciezka);
 			}
 		}
 		void ladujKafelek()
 		{
 			if(zaladowane)
 				return;
-			String sciezka=SciezkaKatalogZPlikami+"/"+daneKafelka.sciezka;
-			LadowanieStart lad = new LadowanieStart(sciezka);
+			String sciezka=SciezkaKatalogZPlikami+"/"+daneKafelka.sciezka+".bi";
+			LadowanieByteStart2 lad = new LadowanieByteStart2(sciezka);
 			zaladowane=true;
+		}
+		void kafelekDoWyswietleniaDodaj()
+		{
+			if(wyswietlane)
+				return;
+			if(!zaladowane)
+				return;
+			for(int i=0; i<WARSTWY; i++)
+				liczniki[i]=0;
+			String sciezka=SciezkaKatalogZPlikami+"/"+daneKafelka.sciezka+".bi";
+			LadowanieByteStart lad = new LadowanieByteStart(sciezka);
+			for(int i=0; i<WARSTWY; i++)
+			{
+				ByteBuffer bb = ByteBuffer.allocateDirect(pts[0].length * 8);
+				bb.order(ByteOrder.nativeOrder());
+				vertexBuffer[i] = bb.asFloatBuffer();
+				vertexBuffer[i].put(pts[i]);
+				vertexBuffer[i].position(0);
+			}
+			pts=null;
+			wyswietlane=true;
+		}
+		void kafelekDoWyswietleniaUsun()
+		{
+			if(!wyswietlane)
+				return;
+			String sciezka=SciezkaKatalogZPlikami+"/"+daneKafelka.sciezka+".bi";
+			LadowanieByteStop lad = new LadowanieByteStop(sciezka);
+			for(int i=0; i<WARSTWY; i++)
+				vertexBuffer[i] = null;
+			wyswietlane=false;
 		}
 		void usunDzieci()
 		{
@@ -243,21 +459,34 @@ class VectorMapManager
 			if(!zaladowane)
 				return;
 			usunDzieci();
-			String sciezka=SciezkaKatalogZPlikami+"/"+daneKafelka.sciezka;
-			LadowanieStop lad = new LadowanieStop(sciezka);
+        	System.out.println("kubacki sort5");
+			kafelekDoWyswietleniaUsun();
 			zaladowane=false;
 		}
 		void ladujRamke()
 		{
 			if(daneKafelka.czyJestWRamce())
 			{
-				if(!zaladowane)
-					ladujKafelek();
+				ladujKafelek();
+				boolean czyWyswietlac = false;
+				if(daneKafelka.level==aktlevel)
+					czyWyswietlac=true;
+				if(dzieci.size()==0)
+					czyWyswietlac=true;
+				if(!czyWyswietlac)
+				{
+		        	System.out.println("kubacki sort6");
+					kafelekDoWyswietleniaUsun();
+				}
 				Iterator <Kafelek> it=dzieci.iterator();
 				while(it.hasNext())
 				{
 					Kafelek kaf=(Kafelek)it.next();
 					kaf.ladujRamke();
+				}
+				if(czyWyswietlac)
+				{
+					kafelekDoWyswietleniaDodaj();
 				}
 			}
 			else
@@ -267,20 +496,28 @@ class VectorMapManager
 		}
 		Kafelek(KafelekDane daneKafelkaTmp, Kafelek ojciecTmp)
 		{
-			dzieci=new HashSet<Kafelek>();
-			ojciec=ojciecTmp;
-			if(ojciec!=null)
+			String sciezka2=SciezkaKatalogZPlikami+"/"+daneKafelkaTmp.sciezka+".bi";
+			File f= new File(sciezka2);
+			if(f.exists())
 			{
-				ojciec.dzieci.add(this);
+				vertexBuffer = new FloatBuffer[WARSTWY];
+				liczniki=new int[WARSTWY];
+				dzieci=new HashSet<Kafelek>();
+				ojciec=ojciecTmp;
+				if(ojciec!=null)
+				{
+					ojciec.dzieci.add(this);
+				}
+				daneKafelka=new KafelekDane(daneKafelkaTmp);
+				zaladowane=false;
+				wyswietlane=false;
 			}
-			daneKafelka=new KafelekDane(daneKafelkaTmp);
-			zaladowane=false;
 		}
 	}
 	Kafelek root;
-	VectorMapManager(String rootDir, String rootFile, TextView pre)
+	VectorMapManager(String rootDir, String rootFile)
 	{
-		pre2=pre;
+
 		SciezkaKatalogZPlikami=rootDir;
 		linie=new HashMap<DoubleString, Linia>();
 		punkty=new HashMap<Long, Punkt>();
@@ -290,19 +527,50 @@ class VectorMapManager
 	}
 	void rysujWszystko()
 	{
-		int licznik=0;
-		pre2.setText(String.valueOf(aktlevel)+" "+String.valueOf(linie.size())+" "+punkty.size());
-		for(DoubleString ds : linie.keySet())
+		if(root!=null)
+			rysujKafelek(root);
+	}
+	void rysujKafelek(Kafelek kaf)
+	{
+		Iterator <Kafelek> it=kaf.dzieci.iterator();
+		while(it.hasNext())
 		{
-			Punkt p1=punkty.get(ds.id1);
-			Punkt p2=punkty.get(ds.id2);
-			if(p1!=null && p2!=null)
-			{
-				Linia ln=linie.get(ds);
-				rysujlinie(ln.x1, ln.y1, ln.x2, ln.y2, licznik, "");
-			}
-			licznik++;
+			Kafelek kaf2=(Kafelek)it.next();
+			if(kaf2.zaladowane)
+				rysujKafelek(kaf2);
 		}
+	}
+	double distance (double x1, double y1, double x2, double y2)
+	{
+		return Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+	}
+	long setpoint(double x, double y)
+	{
+		long val_min=-1;
+		double odl_min=1000000;
+		
+		Iterator <Long> it=punkty.keySet().iterator();
+		if(it!=null)
+		{
+			while(it.hasNext())
+			{
+				Long lt1=(Long)it.next();
+				long val=lt1.longValue();
+				Punkt alfa=punkty.get(val);
+				if(alfa!=null)
+				{
+					double x1=alfa.x;
+					double x2=alfa.y;
+					double dist_akt=distance(x1, x2, x, y);
+					if(dist_akt<odl_min)
+					{
+						odl_min=dist_akt;
+						val_min=val;
+					}
+				}
+			}
+		}
+		return val_min;
 	}
 	void laduj(double x1, double y1, double x2, double y2, int level)
 	{
@@ -312,10 +580,5 @@ class VectorMapManager
 		y2Ramka=y2;
 		aktlevel=level;
 		root.ladujRamke();
-		//rysujWszystko();
-	}
-	void rysujlinie(double xStart, double yStart, double xStop, double yStop, int id, String name)
-	{
-		//ABSTRACT
 	}
 }

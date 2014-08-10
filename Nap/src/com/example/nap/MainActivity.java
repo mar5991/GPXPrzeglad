@@ -30,6 +30,7 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.CornerPathEffect;
 import android.graphics.Matrix;
 import android.graphics.Paint;
@@ -62,11 +63,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.example.nap.HelloService;
-import com.example.nap.ImageLoader;
-import com.example.nap.ImageData;
 import com.example.nap.HelloService.LocalBinder;
 import com.example.nap.HelloService.interfejs;
-import com.example.nap.Obrazek.VectorMapObrazek;
 import com.example.nap.SciezkaLoc.punktloc;
 import com.example.nap.ServiceBis.LocalBinderBis;
 
@@ -77,19 +75,143 @@ public class MainActivity extends Activity
 	@SuppressLint("ShowToast")
 	public class Mapa extends LinearLayout
 	{
-		ObrazekW obr;
+		MyGLSurfaceView obraz;
+		//ObrazekW obr;
 		public Mapa (Context context, TextView pre) 
 		{
 			super(context);
-			obr = new ObrazekW(context, 600, 1000, pre);
-			this.addView(obr);
-		}
-		void mapix()
-		{
-
+			obraz=new MyGLSurfaceView(context);
+			addView(obraz);
 		}
 	}
-	public class ObrazekW extends Obrazek
+	public class DaneLokalizacji extends RasterLayer
+	{
+		Location aktloc;
+		DaneLokalizacji(MyGLSurfaceView surView)
+		{
+			super(surView);
+		}
+		public Bitmap repaint(float x1, float y1, float x2, float y2, float zoom)
+		{
+			Canvas canm=new Canvas();
+			Matrix mx=new Matrix();
+			mx.reset();
+        	System.out.println("edwin 2");
+			Bitmap wynik=Bitmap.createBitmap(szer, wys, Bitmap.Config.ARGB_8888);
+			canm.setBitmap(wynik);
+			canm.drawColor(Color.argb(0, 255, 255, 255));
+			
+			PointF wpta=new PointF(x1,y1);
+			PointF wptb=new PointF(x1,y2);
+			PointF wptc=new PointF(x2,y2);
+			PointF wptd=new PointF(x2,y1);
+			float minx=TimeConvert.min(TimeConvert.min(wpta.x, wptb.x), TimeConvert.min(wptc.x, wptd.x));
+			float maxx=TimeConvert.max(TimeConvert.max(wpta.x, wptb.x), TimeConvert.max(wptc.x, wptd.x));
+			float miny=TimeConvert.min(TimeConvert.min(wpta.y, wptb.y), TimeConvert.min(wptc.y, wptd.y));
+			float maxy=TimeConvert.max(TimeConvert.max(wpta.y, wptb.y), TimeConvert.max(wptc.y, wptd.y));	
+			mx.postScale(zoom, zoom, minx, miny);
+			mx.postTranslate(minx*-1, miny*-1);
+			Paint p=new Paint();
+			p.setStrokeWidth(3);
+			p.setStyle(Paint.Style.FILL);
+			p.setARGB(129, 0, 153, 204);
+			if(doble!=null && doble.size()>1)
+			{
+				int s1=doble.size();
+				p.setStyle(Paint.Style.STROKE);
+				p.setARGB(255, 0, 0, 0);
+				p.setStrokeWidth(20);
+				    p.setDither(true);                    // set the dither to true
+				    p.setStyle(Paint.Style.STROKE);       // set to STOKE
+				    p.setStrokeJoin(Paint.Join.ROUND);    // set the join to round you want
+				    p.setStrokeCap(Paint.Cap.ROUND);      // set the paint cap to round too
+				    p.setPathEffect(new CornerPathEffect(10) );   // set the path effect when they join.
+				    p.setAntiAlias(true);                         // set anti alias so it smooths
+				Path pth=new Path();
+				Path pth2=new Path();
+				punktloc alocb=doble.getpkt(0);
+				PointF p77=TimeConvert.transform(TimeConvert.WspGeoToWspEkr(new PointF((float)alocb.lon, (float)alocb.lat)), mx);
+				pth.moveTo(p77.x, p77.y);
+				pth2.moveTo(p77.x, p77.y);
+				for(int i=1; i<s1; i++)
+				{
+					punktloc alocbis=doble.getpkt(i);
+					PointF p2=TimeConvert.transform(TimeConvert.WspGeoToWspEkr(new PointF((float)alocbis.lon, (float)alocbis.lat)), mx);
+					pth.lineTo(p2.x, p2.y);
+				}
+				int cz_diff=60;
+				canm.drawPath(pth, p);
+				p.setStrokeWidth(10);
+				p.setARGB(255, 51, 181, 229);
+				canm.drawPath(pth, p);
+				int oldprt=0;
+				for(int i=1; i<s1; i++)
+				{
+					punktloc alocbis=doble.getpkt(i);
+					PointF p2=TimeConvert.transform(TimeConvert.WspGeoToWspEkr(new PointF((float)alocbis.lon, (float)alocbis.lat)), mx);
+					pth2.lineTo(p2.x, p2.y);
+					int prt=(int)alocbis.time_from_start;
+					prt=prt%(cz_diff*2);
+					prt/=60;
+					if(oldprt!=prt)
+					{
+						canm.drawPath(pth2, p);
+						pth2=new Path();
+						pth2.moveTo(p2.x,  p2.y);
+						oldprt=prt;
+						if(prt==1)
+						{
+							p.setARGB(255, 0, 153, 204);
+						}
+						else
+						{
+							p.setARGB(255, 51, 181, 229);
+						}
+					}
+				}
+				canm.drawPath(pth2, p);
+				double dlkcal=doble.dlugosc_all();
+				for(double i=0; i<dlkcal; i+=1000)
+				{
+					punktloc tmk=doble.getpkt_d(i);
+					p.setARGB(255, 0, 0, 0);
+					p.setStyle(Paint.Style.FILL);
+					PointF pa=TimeConvert.transform(TimeConvert.WspGeoToWspEkr(new PointF((float)tmk.lon, (float)tmk.lat)), mx);
+					RectF oval=new RectF(pa.x-8, pa.y+8, pa.x+8, pa.y-8);
+					canm.drawOval(oval, p);
+				}
+			}
+			p.setARGB(255, 0, 153, 204);
+			if(aktloc!=null)
+			{
+				p.setStrokeWidth(3);
+				PointF p6=TimeConvert.WspGeoToWspEkr(new PointF((float)aktloc.getLongitude(), (float)aktloc.getLatitude()));
+				PointF p65=TimeConvert.WspGeoToWspEkr(new PointF((float)aktloc.getLongitude(), (float)aktloc.getLatitude()+1));
+				PointF p7=TimeConvert.transform(p6, mx);
+				PointF p75=TimeConvert.transform(p65, mx);
+				double kie0=TimeConvert.kierunek(p7, p75);
+				p.setStyle(Paint.Style.STROKE);
+				RectF oval=new RectF(p7.x-20, p7.y+20, p7.x+20, p7.y-20);
+				canm.drawOval(oval, p);
+				p.setStrokeWidth(2);
+				p.setStyle(Paint.Style.FILL_AND_STROKE);
+				Path path = new Path();
+				kie0+=90;
+				double kierunek=((double)aktloc.getBearing()+kie0)/180*Math.PI;
+				path.moveTo((float)Math.sin(-kierunek-Math.PI)*20+p7.x, (float)Math.cos(-kierunek-Math.PI)*20+p7.y);
+				path.lineTo((float)Math.sin(-kierunek+Math.PI*1/4)*20+p7.x, (float)Math.cos(-kierunek+Math.PI*1/4)*20+p7.y);
+				path.lineTo((float)p7.x, (float)p7.y);
+				path.lineTo((float)Math.sin(-kierunek-Math.PI*1/4)*20+p7.x, (float)Math.cos(-kierunek-Math.PI*1/4)*20+p7.y);
+				path.lineTo((float)Math.sin(-kierunek-Math.PI)*20+p7.x, (float)Math.cos(-kierunek-Math.PI)*20+p7.y);
+				path.close();
+				canm.drawPath(path, p);
+				p.setStrokeWidth(5);
+			}
+			return wynik;
+		}
+	}
+	DaneLokalizacji danelokalizacji;
+	/*public class ObrazekW extends Obrazek
 	{
 		Location aktloc;
 		public ObrazekW(Context context, int sz, int wy, TextView pre) {
@@ -206,7 +328,7 @@ public class MainActivity extends Activity
 				p.setStrokeWidth(5);
 			}
 		}
-	}
+	}*/
 	Mapa mapa1;
 	Menu menu;
 	SciezkaLoc doble;
@@ -225,15 +347,6 @@ public class MainActivity extends Activity
 	}
 	boolean follow;
 
-	public void onWindowFocusChanged(boolean hasFocus)
-	{
-		  super.onWindowFocusChanged(hasFocus);
-		  if(mapa1!=null && mapa1.obr!=null)
-		  {
-			mapa1.obr.szer=vu1.getWidth();
-			mapa1.obr.wys=vu1.getHeight();
-		  }
-	}
 	boolean netavail()
 	{
 		return lay1.rad1.isChecked();
@@ -280,19 +393,11 @@ public class MainActivity extends Activity
 			this.addView(scdat);
 			this.addView(rad1);
 			this.addView(rad2);
-			t4.setText("POBIERZ FOLDER");
+			t4.setText("TU NIC NIE MA");
 			this.addView(ed1);
 			this.addView(t4);
 			rad1.setText("INTERNET DOWNLOAD");
 			rad2.setText("FOLLOW");
-			t4.setOnClickListener(new View.OnClickListener(){
-			public void onClick(View v)
-			{
-				String newpath=gendir.getAbsolutePath()+"/"+ed1.getText();
-				if(mapa1!=null)
-					mapa1.obr.ig=new ImageLoader(newpath);
-			}
-	        });
 		}
 		public void sendData(Location location)
 		{
@@ -344,7 +449,7 @@ public class MainActivity extends Activity
 	                String ssa=selectedUri.getPath();
 	                if(!mService.nagr())
 	                	doble=new SciezkaLoc(ssa);
-	                mapa1.obr.ustawwsp(doble.lg, doble.pd);
+	                //TODO WSPÓŁRZĘDNE USTAWIĆ
 	    			scdat_text2(ssa);
 	           }
 	        }
@@ -430,11 +535,8 @@ public class MainActivity extends Activity
     	public void zmianalokalizacji(Location arg0)
     	{
     		lay1.sendData(arg0);
-			if(mapa1.obr!=null)
-			{
-				mapa1.obr.setaktloc(arg0);
-				mapa1.obr.update();
-			}
+            danelokalizacji.aktloc=arg0;
+            danelokalizacji.update();
             if(mService.nagr())
             {
     			scdat_text1();
@@ -498,8 +600,7 @@ public class MainActivity extends Activity
 	    	{
 	    		kleva1.setTitle("Dane");
 	    		setContentView(mapa1);
-	    		if(mapa1!=null && mapa1.obr!=null)
-	    			mapa1.obr.update();
+	    		//TODO UPDATE
 	    		trybview=true;
 	    	}
 	    }
@@ -526,14 +627,14 @@ public class MainActivity extends Activity
 	    		follow=true;
 	    		kleva3.setTitle("Stop śledzenie");
 	    		kleva3.setIcon(R.drawable.znak3);
-	    		mapa1.obr.update();
+	    		//TODO UPDATE
 	    	}
 	    	else
 	    	{
 	    		follow=false;
 	    		kleva3.setTitle("Start śledzenie");
 	    		kleva3.setIcon(R.drawable.znak);
-	    		mapa1.obr.update();
+	    		//TODO UPDATE
 	    	}
 	    }
 	    if(item.getItemId()==4)
@@ -564,6 +665,7 @@ public class MainActivity extends Activity
 	           e.printStackTrace();
 	       }
 	     }
+	    Obrazek glownyObrazek;
     public void onCreate(Bundle savedInstanceState)
     {
     	super.onCreate(savedInstanceState);
@@ -583,14 +685,16 @@ public class MainActivity extends Activity
 		lay1.setOrientation (LinearLayout.VERTICAL);
 		v1.addView(lay1);
 		mapa1=new Mapa(this, lay1.pre);
+		glownyObrazek=new Obrazek(mapa1.obraz, netdir.getAbsolutePath());
+		danelokalizacji = new DaneLokalizacji(mapa1.obraz);
+		mapa1.obraz.dodajWarstwe(glownyObrazek);
+		mapa1.obraz.dodajWarstwe(danelokalizacji);
 		setContentView(vu1);
 		lay1.sendError();
 	    ActionBar atk=getActionBar();
 	    atk.setDisplayHomeAsUpEnabled(true);
 	    atk.setHomeButtonEnabled(true);
 		String newpath=gendir.getAbsolutePath()+"/"+"net_download";
-		if(mapa1!=null)
-			mapa1.obr.ig=new ImageLoader(newpath);
 		Random r=new Random();
 		datex=(r.nextInt(1000));
     }
@@ -639,7 +743,6 @@ public class MainActivity extends Activity
     protected void onDestroy()
     {
     	super.onDestroy();
-        if(mapa1.obr.ig!=null)
-        	mapa1.obr.ig.zapisz();
+    	glownyObrazek.zapisz();
     }
 }

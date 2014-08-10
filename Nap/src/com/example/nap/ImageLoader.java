@@ -18,9 +18,6 @@ import android.graphics.PointF;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
-
-import com.example.nap.ImageData;
-
 public class ImageLoader
 	{
 	//MainActivity mac;
@@ -142,9 +139,13 @@ public class ImageLoader
 			}
 			return false;
 		}
+		public String urlKafelkaWSieci(int x, int y, int level)
+		{
+			return "http://a.tile.openstreetmap.org/"+String.valueOf(level)+"/"+String.valueOf(x)+"/"+String.valueOf(y)+".png";
+		}
+		//"https://mts1.google.com/vt/lyrs=s@186112440&hl=x-local&src=app&x="+i+"&y="+j+"&z="+level
 		public void laduj(float minx, float maxx, float miny, float maxy, float zoom, Obrazek obb)
 		{
-			
 			int level=(int)(Math.log((zoom*4))/Math.log(2.0)); //level TODO
 			int x1=long2tilex(minx, level);
 			x1=Math.max(x1, 0);
@@ -160,7 +161,8 @@ public class ImageLoader
 					String nazwapliku=sciezka+"/"+String.valueOf(level)+"x"+String.valueOf(i)+"x"+String.valueOf(j)+".png";
 					if(!szukaj(nazwapliku))
 					{
-						new DownloadWebpageTask(nazwapliku, obb).execute("http://a.tile.openstreetmap.org/"+String.valueOf(level)+"/"+String.valueOf(i)+"/"+String.valueOf(j)+".png");
+						
+						new DownloadWebpageTask(nazwapliku, obb).execute(urlKafelkaWSieci(i,j,level));
 						ImageData nowe=new ImageData();
 						nowe.sciezka=nazwapliku;
 						nowe.rozdzielczoscx=(float)(1000.0/Math.pow(2.0, level)/256.0);
@@ -185,16 +187,16 @@ public class ImageLoader
 				for(int i=0; i<s1; i++)
 				{
 					ImageData id=imadat.get(i);
-					String wyn5=id.sciezka.substring(sciezka.length()+1);
+					String wyn5=id.sciezka;
 					File file = new File(wyn5);
-					/*if(file.exists()) TODO
-					{*/
+					if(file.exists())
+					{
 						ww.write(String.valueOf(id.lewydolny.x)+"\n");
 						ww.write(String.valueOf(id.lewydolny.y)+"\n");
 						ww.write(String.valueOf(id.rozdzielczoscx)+"\n");
 						ww.write(String.valueOf(id.rozdzielczoscy)+"\n");
 						ww.write(wyn5+"\n");
-					/*}*/
+					}
 				}
 				ww.close();
 			} catch (Exception e) {

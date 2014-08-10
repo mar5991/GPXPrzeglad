@@ -58,8 +58,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.nap.HelloService;
-import com.example.nap.ImageLoader;
-import com.example.nap.ImageData;
 import com.example.nap.HelloService.LocalBinder;
 import com.example.nap.HelloService.interfejs;
 import com.example.nap.SciezkaLoc.punktloc;
